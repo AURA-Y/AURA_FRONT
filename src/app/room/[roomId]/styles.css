@@ -11,7 +11,16 @@
   background: var(--lk-bg) !important;
 }
 
+/* 비디오 그리드 전체 화면 사용 */
+.lk-video-conference-inner {
+  height: 100% !important;
+  padding-bottom: 0 !important;
+}
+
 .lk-control-bar {
+  display: flex !important;
+  opacity: 1 !important;
+  visibility: visible !important;
   background: var(--lk-bg2) !important;
   border-top: 1px solid rgba(255, 255, 255, 0.1) !important;
   padding: 1rem !important;
@@ -51,6 +60,8 @@
   border-color: #5865f2 !important;
 }
 
+/* 이름 표시는 LiveKit 기본 스타일 사용 */
+/*
 .lk-participant-metadata {
   background: rgba(0, 0, 0, 0.6) !important;
   backdrop-filter: blur(10px) !important;
@@ -63,3 +74,4 @@
   font-weight: 600 !important;
   font-size: 0.875rem !important;
 }
+*/
