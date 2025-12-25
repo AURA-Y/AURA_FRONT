@@ -1,0 +1,65 @@
+/* Discord 스타일 커스텀 */
+:root {
+  --lk-bg: #1e1f22;
+  --lk-bg2: #2b2d31;
+  --lk-bg3: #313338;
+  --lk-fg: #ffffff;
+  --lk-fg2: #b5bac1;
+}
+
+.lk-video-conference {
+  background: var(--lk-bg) !important;
+}
+
+.lk-control-bar {
+  background: var(--lk-bg2) !important;
+  border-top: 1px solid rgba(255, 255, 255, 0.1) !important;
+  padding: 1rem !important;
+}
+
+.lk-button {
+  background: var(--lk-bg3) !important;
+  color: var(--lk-fg2) !important;
+  border-radius: 8px !important;
+  transition: all 0.2s !important;
+}
+
+.lk-button:hover {
+  background: #404249 !important;
+  color: var(--lk-fg) !important;
+}
+
+.lk-button.lk-disconnected,
+.lk-button[data-lk-source="microphone"][data-lk-enabled="false"],
+.lk-button[data-lk-source="camera"][data-lk-enabled="false"] {
+  background: #da373c !important;
+  color: white !important;
+}
+
+.lk-button.lk-disconnected:hover {
+  background: #a12d30 !important;
+}
+
+.lk-participant-tile {
+  border-radius: 8px !important;
+  overflow: hidden !important;
+  border: 2px solid transparent !important;
+  transition: border-color 0.2s !important;
+}
+
+.lk-participant-tile.lk-speaking {
+  border-color: #5865f2 !important;
+}
+
+.lk-participant-metadata {
+  background: rgba(0, 0, 0, 0.6) !important;
+  backdrop-filter: blur(10px) !important;
+  border-radius: 6px !important;
+  padding: 0.5rem !important;
+}
+
+.lk-participant-name {
+  color: white !important;
+  font-weight: 600 !important;
+  font-size: 0.875rem !important;
+}
