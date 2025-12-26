@@ -1,32 +1,48 @@
-@import "tailwindcss";
-@import "tw-animate-css";
+/* 1. 외부 라이브러리 및 플러그인 가져오기 */
+@import "tailwindcss"; /* Tailwind CSS v4 엔진 기본 스타일 */
+@import "tw-animate-css"; /* CSS 애니메이션 유틸리티 플러그인 */
 
+/* 2. 다크모드 설정 */
+/* 부모 요소에 .dark 클래스가 있을 때 작동하는 다크모드 변수를 정의합니다. */
 @custom-variant dark (&:is(.dark *));
 
+/* 3. CSS 변수(디자인 토큰) 정의 */
 :root {
-  /* Font & Colors */
-  --font-size: 16px;
-  --background: #ffffff;
-  --foreground: oklch(0.145 0 0);
-  --primary: #030213;
-  --primary-foreground: oklch(1 0 0);
-  --secondary: oklch(0.95 0.0058 264.53);
-  --secondary-foreground: #030213;
-  --muted: #ececf0;
-  --muted-foreground: #717182;
-  --accent: #e9ebef;
-  --accent-foreground: #030213;
-  --destructive: #d4183d;
-  --border: rgba(0, 0, 0, 0.1);
-  --radius: 0.625rem;
+  /* [폰트 및 레이아웃] */
+  --font-size: 16px; /* 기본 텍스트 크기 */
+  --radius: 0.625rem; /* 컴포넌트 모서리 곡률 (Border Radius) */
 
-  /* Chart & Sidebar (Shadcn UI 호환) */
+  /* [기본 배경 및 글자색] */
+  --background: #ffffff; /* 전체 앱의 배경색 */
+  --foreground: oklch(0.145 0 0); /* 기본 글자색 (검정 계열) */
+
+  /* [브랜드 컬러 - Primary] */
+  --primary: #030213; /* 주요 버튼, 강조 요소 색상 */
+  --primary-foreground: #030213; /* 프라이머리 배경 위에서의 글자색 */
+
+  /* [보조 컬러 - Secondary] */
+  --secondary: oklch(0.95 0.0058 264.53); /* 보조 버튼, 비활성 요소 색상 */
+  --secondary-foreground: #030213;
+
+  /* [무채색 및 중립톤 - Muted/Accent] */
+  --muted: #ececf0; /* 설명글 등 눈에 덜 띄어야 하는 배경 */
+  --muted-foreground: #717182; /* 설명글 등 연한 글자색 */
+  --accent: #e9ebef; /* 호버(Hover) 시 강조될 배경색 */
+  --accent-foreground: #030213;
+
+  /* [상태 컬러 - Destructive/Border] */
+  --destructive: #d4183d; /* 삭제, 에러 등 위험 알림 색상 */
+  --border: rgba(0, 0, 0, 0.1); /* 구분선, 테두리 색상 */
+
+  /* [사이드바 및 Shadcn UI 호환 변수] */
   --sidebar: oklch(0.985 0 0);
   --sidebar-foreground: oklch(0.145 0 0);
   --sidebar-primary: #030213;
   --sidebar-border: oklch(0.922 0 0);
 }
 
+/* 4. Tailwind 테마 확장 (v4 방식) */
+/* 상단에서 정의한 CSS 변수들을 Tailwind의 유틸리티 클래스(bg-primary 등)로 연결합니다. */
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -43,22 +59,29 @@
   --radius-lg: var(--radius);
 }
 
+/* 5. 베이스 스타일 (전역 태그 설정) */
 @layer base {
+  /* 모든 요소에 기본 테두리 색상과 디버깅용 외곽선을 설정 */
   * {
     @apply border-border outline outline-black/50;
   }
+
+  /* HTML 문서 기본 폰트 크기 설정 */
   html {
     font-size: var(--font-size);
   }
+
+  /* Body 태그 기본 배경, 색상 및 폰트 부드럽게 설정 */
   body {
     @apply bg-background text-foreground antialiased;
-    font-feature-settings: "cv11", "ss01";
+    font-feature-settings: "cv11", "ss01"; /* 특정 폰트의 가독성 향상 옵션 */
   }
-  /* Typography 기본 설정 */
+
+  /* Typography (제목) 기본 설정 */
   h1 {
-    @apply text-4xl font-bold tracking-tight;
+    @apply text-4xl font-bold tracking-tight; /* 메인 제목 스타일 */
   }
   h2 {
-    @apply text-2xl font-semibold tracking-tight;
+    @apply text-2xl font-semibold tracking-tight; /* 서브 제목 스타일 */
   }
 }
