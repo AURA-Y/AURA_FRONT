@@ -14,5 +14,10 @@ export function useLiveKitToken() {
     retry: false,
   });
 
-  return { ...query, setParams };
+  return {
+    token: query.data,
+    isLoading: query.isLoading,
+    isError: query.isError,
+    requestToken: setParams,
+  };
 }
