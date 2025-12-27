@@ -12,7 +12,7 @@ export function useJoinRoom() {
 
   const mutation = useMutation({
     mutationFn: async ({ room, user }: JoinRoomFormValues) => {
-      const token = await fetchLiveKitToken(room, user);
+      const { token } = await fetchLiveKitToken(room, user);
       return { room, user, token };
     },
     onSuccess: ({ room, user, token }) => {
@@ -33,11 +33,11 @@ export function useCreateRoom() {
       // 1. 방 생성 API 호출
       const { roomId } = await createRoom(user);
       // 2. 해당 방의 토큰 발급
-      const token = await fetchLiveKitToken(roomId, user);
+      const { token } = await fetchLiveKitToken(roomId, user);
       return { roomId, user, token };
     },
     onSuccess: ({ roomId, user, token }) => {
-      router.push(`/room/${roomId}?nickname=${user}&token=${token}`);
+      router.push(`/meeting/${roomId}?nickname=${user}&token=${token}`);
       toast.success("방이 생성되었습니다.");
     },
     onError: () => toast.error("방 생성에 실패했습니다."),
