@@ -1,4 +1,3 @@
-import { env } from "@/env.mjs"; // 우리가 만든 env 객체 임포트
 import { createEnv } from "@t3-oss/env-nextjs";
 import { z } from "zod";
 
@@ -17,7 +16,7 @@ export const env = createEnv({
    * 'NEXT_PUBLIC_' 접두사가 붙어야 하며 브라우저에서도 접근 가능합니다.
    */
   client: {
-    NEXT_PUBLIC_LIVEKIT_URL: z.string().url(),
+    NEXT_PUBLIC_LIVEKIT_URL: z.string().min(1),
     NEXT_PUBLIC_API_URL: z.string().url(),
   },
 
