@@ -1,3 +1,5 @@
-export default function page() {
-  return <div>page</div>;
+import CreateMeetingSecondStepForm from "@/components/create/second_step/CreateMeetingSecondStepForm";
+
+export default function CreateMeetingSecondStepPage() {
+  return <CreateMeetingSecondStepForm />;
 }
