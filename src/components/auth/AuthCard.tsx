@@ -3,13 +3,16 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { motion } from "framer-motion";
 
+import { cn } from "@/lib/utils";
+
 interface AuthCardProps {
   title: string;
   description: string;
   children: React.ReactNode;
+  className?: string;
 }
 
-export default function AuthCard({ title, description, children }: AuthCardProps) {
+export default function AuthCard({ title, description, children, className }: AuthCardProps) {
   return (
     <div className="from-background via-muted/30 to-accent/50 relative flex min-h-screen items-center justify-center bg-linear-to-br p-4">
       {/* 배경 장식 애니메이션 */}
@@ -35,7 +38,9 @@ export default function AuthCard({ title, description, children }: AuthCardProps
         transition={{ duration: 0.4, ease: "easeOut" }}
         className="relative z-10 w-full max-w-md"
       >
-        <Card className="border-border/50 bg-background/80 shadow-2xl backdrop-blur-sm">
+        <Card
+          className={cn("border-border/50 bg-background/80 shadow-2xl backdrop-blur-sm", className)}
+        >
           <CardHeader className="space-y-2 text-center">
             <CardTitle className="text-3xl">{title}</CardTitle>
             <p className="text-muted-foreground text-sm">{description}</p>
