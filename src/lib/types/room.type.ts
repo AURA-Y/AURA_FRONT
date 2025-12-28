@@ -24,7 +24,8 @@ interface Room {
   description: string;
   maxParticipants: number;
   createdBy: string;
-  createdAt: "2025-12-27T08:00:00.000Z";
+  createdAt: string; // 리터럴이 아닌 string 타입으로 지정
+  // createdAt: "2025-12-27T08:00:00.000Z";
 }
 
 interface GetAllRoomsResponse {
@@ -33,3 +34,15 @@ interface GetAllRoomsResponse {
 }
 
 export type { Room, GetAllRoomsResponse };
+
+interface AttendRoomRequest {
+  roomName: string;
+  userName: string;
+}
+
+interface AttendRoomResponse {
+  token: string;
+  url: string;
+}
+
+export type { AttendRoomRequest, AttendRoomResponse };

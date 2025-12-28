@@ -1,13 +1,15 @@
 "use client";
 
 import { fetchLiveKitToken } from "@/lib/api/api.auth";
-import { createRoom } from "@/lib/api/api.room";
+import { attendRoom, createRoom } from "@/lib/api/api.room";
 import { CreateRoomFormValues, JoinRoomFormValues } from "@/lib/schema/room/roomCreate.schema";
+import { AttendRoomRequest } from "@/lib/types/room.type";
 import { errorHandler } from "@/lib/utils";
 import { useMutation } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
+// 링크를 직접 입력하여, 회의 참여 mutation
 export function useJoinRoom() {
   const router = useRouter();
 
@@ -21,6 +23,33 @@ export function useJoinRoom() {
       toast.success("회의실로 입장합니다.");
     },
     onError: () => toast.error("입장에 실패했습니다. 방 번호를 확인하세요."),
+  });
+
+  return mutation;
+}
+
+// 회의 방 참여하기 누를 시, 참여하는 mutation
+export function useAttendRoom() {
+  const router = useRouter();
+
+  const mutation = useMutation({
+    mutationFn: async ({ roomName, userName }: AttendRoomRequest) => {
+      const response = await attendRoom({
+        roomName: roomName,
+        userName: userName,
+      });
+      return response;
+    },
+
+    onSuccess: (data, variables) => {
+      const { token } = data;
+      const { roomName: roomId, userName } = variables;
+
+      router.push(`/room/${roomId}?nickname=${userName}&token=${token}`);
+    },
+    onError: (error) => {
+      errorHandler(error);
+    },
   });
 
   return mutation;

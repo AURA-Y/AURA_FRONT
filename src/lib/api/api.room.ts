@@ -1,5 +1,11 @@
 import { api } from "@/lib/utils";
-import { CreateRoomRequest, CreateRoomResponse, GetAllRoomsResponse } from "../types/room.type";
+import {
+  AttendRoomRequest,
+  AttendRoomResponse,
+  CreateRoomRequest,
+  CreateRoomResponse,
+  GetAllRoomsResponse,
+} from "../types/room.type";
 
 // 방 생성 api
 const createRoom = async (params: CreateRoomRequest): Promise<CreateRoomResponse> => {
@@ -10,10 +16,15 @@ const createRoom = async (params: CreateRoomRequest): Promise<CreateRoomResponse
 
 // 기존 방 입장을 위한 LiveKit JWT 토큰을 발급 api
 
+const attendRoom = async (params: AttendRoomRequest): Promise<AttendRoomResponse> => {
+  const { data } = await api.post<AttendRoomResponse>("/api/token", params);
+  return data;
+};
+
 // 현재 생성된 모든 방의 목록을 반환 api
 const getAllRooms = async (): Promise<GetAllRoomsResponse> => {
   const { data } = await api.get<GetAllRoomsResponse>("/api/rooms");
   return data;
 };
 
-export { createRoom, getAllRooms };
+export { createRoom, getAllRooms, attendRoom };
