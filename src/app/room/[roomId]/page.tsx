@@ -1,29 +1,37 @@
 "use client";
 
-import { useEffect } from "react";
-import LiveKitView from "@/components/room/LiveKitView";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useMemo } from "react";
+import MediasoupRoom from "@/components/room/MediasoupRoom";
+import { env } from "@/env.mjs";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 
 export default function RoomPage() {
-  //http://localhost:3000/room/my-meeting-room?token=eyJhbGci... 로 접속시,
   const searchParams = useSearchParams();
+  const params = useParams<{ roomId: string }>();
   const router = useRouter();
 
-  //? 뒤 : token=eyJhbGci... -> 'eyJhbGci...'만 추출
-  const token = searchParams.get("token");
+  const nickname = searchParams.get("nickname") || "Guest";
+  const signallingUrl =
+    searchParams.get("signallingUrl") || env.NEXT_PUBLIC_SIGNALING_URL || env.NEXT_PUBLIC_API_URL;
 
   useEffect(() => {
-    // token이 없을 시, -> 메인페이지로 돌아감
-    if (!token) {
+    if (!signallingUrl) {
       router.push("/");
     }
-  }, [token, router]);
+  }, [signallingUrl, router]);
 
-  if (!token) return null;
+  const roomId = useMemo(() => params?.roomId?.toString() || "", [params]);
+
+  if (!signallingUrl || !roomId) return null;
 
   return (
     <div className="fixed inset-0 z-50 bg-black">
-      <LiveKitView token={token} onDisconnected={() => router.push("/")} />
+      <MediasoupRoom
+        roomId={roomId}
+        nickname={nickname}
+        signallingUrl={signallingUrl}
+        onLeave={() => router.push("/")}
+      />
     </div>
   );
 }

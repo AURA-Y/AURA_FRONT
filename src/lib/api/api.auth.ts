@@ -1,12 +1,16 @@
 import { api } from "@/lib/utils";
+import { AttendRoomApiResponse, AttendRoomResponse } from "../types/room.type";
 
-const fetchLiveKitToken = async (room: string, user: string) => {
-  const { data } = await api.post<{ token: string; url: string }>("/api/token", {
+const fetchRoomToken = async (room: string, user: string): Promise<AttendRoomResponse> => {
+  const { data } = await api.post<AttendRoomApiResponse>("/api/token", {
     roomId: room,
     userName: user,
   });
 
-  return data;
+  return {
+    token: data.token,
+    signallingUrl: data.signallingUrl || data.url || data.livekitUrl || api.defaults.baseURL || "",
+  };
 };
 
-export { fetchLiveKitToken };
+export { fetchRoomToken };

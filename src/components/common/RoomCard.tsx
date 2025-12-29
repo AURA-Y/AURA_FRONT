@@ -6,7 +6,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
 import { format } from "date-fns";
-import { useJoinRoom } from "@/hooks/use-livekit-token";
+import { useJoinRoom } from "@/hooks/use-room-token";
 import { useAuthStore } from "@/lib/store/auth.store";
 
 export default function RoomCard({ room }: { room: Room }) {

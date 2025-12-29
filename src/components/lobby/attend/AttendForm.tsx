@@ -4,7 +4,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { joinRoomSchema, JoinRoomFormValues } from "@/lib/schema/auth.schema";
 import { useAuthStore } from "@/lib/store/auth.store";
-import { useJoinRoom } from "@/hooks/use-livekit-token";
+import { useJoinRoom } from "@/hooks/use-room-token";
 import { extractRoomId } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
