@@ -2,6 +2,7 @@
 
 import RoomCard from "@/components/common/RoomCard";
 import { useAllReadRooms } from "@/hooks/use-read-rooms";
+import { CreateRoomDialog } from "@/components/common/CreateRoomDialog";
 
 export default function HomePage() {
   const { data: rooms, isLoading, isError } = useAllReadRooms();
@@ -13,8 +14,12 @@ export default function HomePage() {
     <div className="min-h-screen w-full bg-slate-50 p-6 text-slate-900 dark:bg-slate-950 dark:text-slate-100">
       {/* Header Section */}
       <div className="mx-auto max-w-5xl space-y-8">
-        <p className="text-2xl font-bold">전체 회의방 ({rooms?.total})</p>
-        {/* 검색바 적용 */}
+        <div className="flex items-center justify-between">
+          <p className="text-2xl font-bold">전체 회의방 ({rooms?.total})</p>
+          <CreateRoomDialog />
+        </div>
+
+        {/* 검색바 적용 (추후) */}
 
         {/* 방 목록 그리드 */}
         {rooms?.rooms && rooms.rooms.length > 0 ? (

@@ -13,7 +13,6 @@ interface CreateRoomResponse {
   maxParticipants: number;
   userName: string;
   token: string;
-  signallingUrl: string;
 }
 
 interface CreateRoomApiResponse {

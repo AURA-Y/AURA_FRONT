@@ -4,15 +4,17 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { joinRoomSchema, JoinRoomFormValues } from "@/lib/schema/auth.schema";
 import { useAuthStore } from "@/lib/store/auth.store";
-import { useJoinRoom } from "@/hooks/use-room-token";
 import { extractRoomId } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Link2 } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
 
 export default function AttendForm() {
   const user = useAuthStore((state) => state.user);
-  const { mutate: joinRoom, isPending } = useJoinRoom();
+  const router = useRouter();
+  const [isPending, setIsPending] = useState(false);
 
   const {
     register,
@@ -29,15 +31,17 @@ export default function AttendForm() {
     },
   });
 
-  const onSubmit = (data: JoinRoomFormValues) => {
+  const onSubmit = async (data: JoinRoomFormValues) => {
     if (!user) return;
 
+    setIsPending(true);
     const roomId = extractRoomId(data.room);
 
-    joinRoom({
-      room: roomId,
-      user: user.nickname,
-    });
+    // Simulate API delay
+    await new Promise((resolve) => setTimeout(resolve, 500));
+
+    router.push(`/room/${roomId}`);
+    setIsPending(false);
   };
 
   return (

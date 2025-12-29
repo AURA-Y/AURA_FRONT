@@ -15,8 +15,6 @@ export const env = createEnv({
    * 'NEXT_PUBLIC_' 접두사가 붙어야 하며 브라우저에서도 접근 가능합니다.
    */
   client: {
-    // Mediasoup 신호 서버: 백엔드에서 내려주는 URL을 우선 사용하고, 없을 때만 기본값으로 fallback
-    NEXT_PUBLIC_SIGNALING_URL: z.string().min(1).optional(),
     NEXT_PUBLIC_API_URL: z.string().url(),
   },
 
@@ -26,8 +24,7 @@ export const env = createEnv({
    */
   runtimeEnv: {
     NODE_ENV: process.env.NODE_ENV,
-    NEXT_PUBLIC_SIGNALING_URL: process.env.NEXT_PUBLIC_SIGNALING_URL || "http://aura-server-alb-2065673986.ap-northeast-2.elb.amazonaws.com",
-    NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || "http://aura-server-alb-2065673986.ap-northeast-2.elb.amazonaws.com",
+    NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL,
   },
 
   /**
