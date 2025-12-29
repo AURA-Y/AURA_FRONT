@@ -1,15 +1,5 @@
 import { api } from "@/lib/utils";
-
-export interface AuthUser {
-  id: string;
-  username: string;
-  name: string;
-}
-
-export interface AuthResponse {
-  accessToken: string;
-  user: AuthUser;
-}
+import { AuthResponse } from "@/lib/types/auth.types";
 
 export const register = async (payload: {
   username: string;

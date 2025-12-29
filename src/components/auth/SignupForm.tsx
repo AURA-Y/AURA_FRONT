@@ -10,10 +10,12 @@ import Link from "next/link";
 import { toast } from "sonner";
 import { useAuthStore } from "@/lib/store/auth.store";
 import { useRouter } from "next/navigation";
+import { useState } from "react";
 
 export default function SignupForm() {
   const router = useRouter();
   const registerUser = useAuthStore((state) => state.register);
+  const [apiError, setApiError] = useState<string | null>(null);
 
   const {
     register,
@@ -24,16 +26,22 @@ export default function SignupForm() {
   });
 
   const onSubmit = async (data: SignupFormValues) => {
+    setApiError(null);
     try {
       await registerUser(data.username, data.password, data.name);
       toast.success("회원가입 및 로그인에 성공했습니다.");
       router.push("/");
     } catch (error: any) {
-      const message =
-        error?.response?.data?.message ||
-        error?.message ||
-        "회원가입에 실패했습니다. 다시 시도해주세요.";
-      toast.error(message);
+      const status = error?.response?.status;
+      const apiMessage = error?.response?.data?.message;
+
+      let msg = "회원가입에 실패했습니다. 잠시 후 다시 시도해 주세요.";
+      if (status === 409) msg = "이미 존재하는 아이디입니다. 다른 아이디를 사용해 주세요.";
+      else if (status === 400) msg = "입력값을 다시 확인해 주세요.";
+      else if (apiMessage) msg = apiMessage;
+
+      setApiError(msg);
+      toast.error(msg);
     }
   };
 
@@ -53,7 +61,9 @@ export default function SignupForm() {
             className="focus:ring-primary/20 pl-10 transition-all focus:ring-2"
           />
         </div>
-        {errors.username && <p className="text-destructive text-xs">{errors.username.message}</p>}
+        <div className="min-h-[18px] text-destructive text-xs">
+          {errors.username?.message}
+        </div>
       </div>
 
       {/* 이름 */}
@@ -70,7 +80,9 @@ export default function SignupForm() {
             className="focus:ring-primary/20 pl-10 transition-all focus:ring-2"
           />
         </div>
-        {errors.name && <p className="text-destructive text-xs">{errors.name.message}</p>}
+        <div className="min-h-[18px] text-destructive text-xs">
+          {errors.name?.message}
+        </div>
       </div>
 
       {/* 비밀번호 */}
@@ -88,7 +100,9 @@ export default function SignupForm() {
             className="focus:ring-primary/20 pl-10 transition-all focus:ring-2"
           />
         </div>
-        {errors.password && <p className="text-destructive text-xs">{errors.password.message}</p>}
+        <div className="min-h-[18px] text-destructive text-xs">
+          {errors.password?.message}
+        </div>
       </div>
 
       {/* 비밀번호 확인 */}
@@ -106,9 +120,9 @@ export default function SignupForm() {
             className="focus:ring-primary/20 pl-10 transition-all focus:ring-2"
           />
         </div>
-        {errors.confirmPassword && (
-          <p className="text-destructive text-xs">{errors.confirmPassword.message}</p>
-        )}
+        <div className="min-h-[18px] text-destructive text-xs">
+          {errors.confirmPassword?.message}
+        </div>
       </div>
 
       {/* 회원가입 버튼 */}
@@ -119,6 +133,8 @@ export default function SignupForm() {
       >
         {isSubmitting ? "회원가입 중..." : "회원가입"}
       </Button>
+
+      <div className="min-h-[18px] text-destructive text-xs">{apiError}</div>
 
       {/* 로그인 링크 */}
       <div className="text-center text-sm">

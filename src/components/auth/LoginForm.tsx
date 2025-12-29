@@ -10,10 +10,12 @@ import Link from "next/link";
 import { toast } from "sonner";
 import { useAuthStore } from "@/lib/store/auth.store";
 import { useRouter } from "next/navigation";
+import { useState } from "react";
 
 export default function LoginForm() {
   const login = useAuthStore((state) => state.login);
   const router = useRouter();
+  const [apiError, setApiError] = useState<string | null>(null);
 
   const {
     register,
@@ -24,16 +26,21 @@ export default function LoginForm() {
   });
 
   const onSubmit = async (data: LoginFormValues) => {
+    setApiError(null);
     try {
       await login(data.username, data.password);
       toast.success("로그인에 성공했어요.");
-       router.push("/");
+      router.push("/");
     } catch (error: any) {
-      const message =
-        error?.response?.data?.message ||
-        error?.message ||
-        "로그인에 실패했습니다. 다시 시도해주세요.";
-      toast.error(message);
+      const status = error?.response?.status;
+      const apiMessage = error?.response?.data?.message;
+
+      let msg = "로그인에 실패했습니다. 잠시 후 다시 시도해 주세요.";
+      if (status === 401) msg = "아이디 또는 비밀번호가 올바르지 않습니다.";
+      else if (apiMessage) msg = apiMessage;
+
+      setApiError(msg);
+      toast.error(msg);
     }
   };
 
@@ -53,7 +60,9 @@ export default function LoginForm() {
             className="focus:ring-primary/20 pl-10 transition-all focus:ring-2"
           />
         </div>
-        {errors.username && <p className="text-destructive text-xs">{errors.username.message}</p>}
+        <div className="min-h-[18px] text-destructive text-xs">
+          {errors.username?.message}
+        </div>
       </div>
 
       {/* 비밀번호 */}
@@ -71,7 +80,9 @@ export default function LoginForm() {
             className="focus:ring-primary/20 pl-10 transition-all focus:ring-2"
           />
         </div>
-        {errors.password && <p className="text-destructive text-xs">{errors.password.message}</p>}
+        <div className="min-h-[18px] text-destructive text-xs">
+          {errors.password?.message}
+        </div>
       </div>
 
       {/* 로그인 버튼 */}
@@ -82,6 +93,8 @@ export default function LoginForm() {
       >
         {isSubmitting ? "로그인 중..." : "로그인"}
       </Button>
+
+      <div className="min-h-[18px] text-destructive text-xs">{apiError}</div>
 
       {/* 회원가입 링크 */}
       <div className="text-center text-sm">
