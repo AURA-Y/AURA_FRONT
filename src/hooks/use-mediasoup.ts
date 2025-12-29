@@ -314,7 +314,8 @@ export function useMediasoup({ roomId, nickname, signallingUrl, localStream }: U
       mounted = false;
       cleanup();
     };
-  }, [roomId, nickname, signallingUrl, cleanup]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [roomId, nickname, signallingUrl]);
 
   // 2. Publish Local Stream
   useEffect(() => {
