@@ -199,6 +199,7 @@ body::-webkit-scrollbar-thumb:hover {
   /* HTML 문서 기본 폰트 크기 설정 */
   html {
     font-size: var(--font-size);
+    overflow-y: scroll; /* 스크롤바 항상 표시 (모달 열릴 때 레이아웃 시프트 방지) */
   }
 
   /* Body 태그 기본 배경, 색상 및 폰트 부드럽게 설정 */
