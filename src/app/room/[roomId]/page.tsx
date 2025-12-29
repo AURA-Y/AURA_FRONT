@@ -12,6 +12,7 @@ import { useNoiseGate } from "@/hooks/use-noise-gate";
 export default function RoomPage() {
   const params = useParams(); // { roomId: string }
   const roomId = params.roomId as string;
+
   const router = useRouter();
   const user = useAuthStore((state) => state.user);
 
