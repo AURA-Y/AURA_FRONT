@@ -8,7 +8,6 @@ export const env = createEnv({
    */
   server: {
     NODE_ENV: z.enum(["development", "test", "production"]),
-    // 예: LIVEKIT_API_SECRET: z.string().min(1),
   },
 
   /**
