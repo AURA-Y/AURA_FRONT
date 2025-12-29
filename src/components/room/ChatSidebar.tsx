@@ -1,11 +1,15 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Send, MoreVertical, Search } from "lucide-react";
+import { Send, Search } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
+import { Socket } from "socket.io-client";
 
 interface ChatSidebarProps {
   isOpen: boolean;
   onClose: () => void;
+  socket: Socket | null;
+  roomId: string;
+  nickname: string;
 }
 
 interface Message {
@@ -15,13 +19,16 @@ interface Message {
   timestamp: string;
 }
 
-export function ChatSidebar({ isOpen, onClose }: ChatSidebarProps) {
+export function ChatSidebar({ isOpen, onClose, socket, roomId, nickname }: ChatSidebarProps) {
   const [messages, setMessages] = useState<Message[]>([
     {
-      id: "1",
-      sender: "Host",
-      text: "회의에 오신 것을 환영합니다! 👋",
-      timestamp: "오후 2:30",
+      id: "welcome",
+      sender: "System",
+      text: "채팅방에 연결되었습니다.",
+      timestamp: new Date().toLocaleTimeString("ko-KR", {
+        hour: "2-digit",
+        minute: "2-digit",
+      }),
     },
   ]);
   const [inputValue, setInputValue] = useState("");
@@ -34,17 +41,60 @@ export function ChatSidebar({ isOpen, onClose }: ChatSidebarProps) {
     }
   }, [messages]);
 
+  // Listen for incoming messages
+  useEffect(() => {
+    if (!socket) return;
+
+    const onMessage = (data: { sender: string; text: string; timestamp?: string }) => {
+      // Avoid duplicating my own message if I already added it optimally (optional, but simplified here)
+      // If server broadcasts back to sender, we might duplicate.
+      // Usually broadcast.to(room).except(socket) is better, or just handle all from server.
+      // Let's assume we add our own locally and ignore if it comes back with same ID?
+      // For simplicity, let's just accept everything not from "Me" if server echoes,
+      // or if server broadcasts to everyone including sender, we don't add locally first?
+      // Plan: Add locally, ignore if sender === nickname.
+      if (data.sender === nickname) return;
+
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: Date.now().toString() + Math.random(),
+          sender: data.sender,
+          text: data.text,
+          timestamp:
+            data.timestamp ||
+            new Date().toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" }),
+        },
+      ]);
+    };
+
+    socket.on("chat-message", onMessage);
+
+    return () => {
+      socket.off("chat-message", onMessage);
+    };
+  }, [socket, nickname]);
+
   const handleSendMessage = () => {
     if (!inputValue.trim()) return;
 
+    const text = inputValue.trim();
+    const timestamp = new Date().toLocaleTimeString("ko-KR", {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+
+    // 1. Emit to server
+    if (socket && roomId) {
+      socket.emit("chat-message", { roomId, text, sender: nickname });
+    }
+
+    // 2. Add locally
     const newMessage: Message = {
       id: Date.now().toString(),
-      sender: "Me",
-      text: inputValue,
-      timestamp: new Date().toLocaleTimeString("ko-KR", {
-        hour: "2-digit",
-        minute: "2-digit",
-      }),
+      sender: "Me", // UI checks this for alignment
+      text: text,
+      timestamp,
     };
 
     setMessages((prev) => [...prev, newMessage]);
@@ -67,7 +117,6 @@ export function ChatSidebar({ isOpen, onClose }: ChatSidebarProps) {
       <div className="flex h-16 items-center justify-between border-b border-white/5 bg-[#0e0f15] px-4">
         <h3 className="font-bold text-slate-200">메시지</h3>
         <div className="flex gap-1">
-          {/* Mock Search Button */}
           <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400 hover:text-white">
             <Search className="h-4 w-4" />
           </Button>

@@ -343,5 +343,5 @@ export function useMediasoup({ roomId, nickname, signallingUrl, localStream }: U
     publish();
   }, [status, localStream]);
 
-  return { status, error, peers };
+  return { status, error, peers, socket: socketRef.current };
 }

@@ -31,7 +31,7 @@ export default function RoomPage() {
   const { stream: gatedStream, isSpeaking } = useNoiseGate(sourceStream, 0.05);
 
   // Mediasoup Hook
-  const { status, error, peers } = useMediasoup({
+  const { status, error, peers, socket } = useMediasoup({
     roomId,
     nickname: user?.nickname || "Guest",
     signallingUrl:
@@ -210,7 +210,13 @@ export default function RoomPage() {
           localStream={gatedStream} // Pass the processed stream
           localIsSpeaking={isSpeaking}
         />
-        <ChatSidebar isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} />
+        <ChatSidebar
+          isOpen={isChatOpen}
+          onClose={() => setIsChatOpen(false)}
+          socket={socket}
+          roomId={roomId}
+          nickname={user?.nickname || "Guest"}
+        />
       </div>
 
       {/* Control Bar */}
