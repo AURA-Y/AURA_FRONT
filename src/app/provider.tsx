@@ -4,8 +4,6 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import { useState } from "react";
 
-import "@livekit/components-styles";
-
 // 1. Props 타입을 인터페이스로 정의합니다.
 interface ProvidersProps {
   children: React.ReactNode;

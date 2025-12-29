@@ -6,21 +6,20 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
 import { format } from "date-fns";
-import { useJoinRoom } from "@/hooks/use-livekit-token";
 import { useAuthStore } from "@/lib/store/auth.store";
+import { useRouter } from "next/navigation";
 
 export default function RoomCard({ room }: { room: Room }) {
-  const { mutate: joinRoom, isPending } = useJoinRoom();
+  const router = useRouter();
   const user = useAuthStore((state) => state.user);
 
   const handleJoin = () => {
     // 로그인 안되어 있을 때 처리 로직 필요 (예: 모달 띄우기)
-    // 현재는 김철수 하드코딩 되어있던 부분을 실제 유저 닉네임 유무에 따라 처리하도록 변경 필요하지만
-    // 일단 로그인된 유저가 있다면 그 이름을 사용하도록 수정
-    joinRoom({
-      room: room.roomId,
-      user: user?.nickname || "Guest",
-    });
+    if (!user) {
+      alert("로그인이 필요합니다."); // 임시 알림
+      return;
+    }
+    router.push(`/room/${room.roomId}`);
   };
 
   return (
@@ -50,12 +49,7 @@ export default function RoomCard({ room }: { room: Room }) {
               {format(new Date(room.createdAt), "yyyy.MM.dd")}
             </span>
           </div>
-          <Button
-            onClick={handleJoin}
-            disabled={isPending}
-            size="sm"
-            className="bg-blue-600 hover:bg-blue-700"
-          >
+          <Button onClick={handleJoin} size="sm" className="bg-blue-600 hover:bg-blue-700">
             참여하기 <ArrowRight size={14} className="ml-1" />
           </Button>
         </div>

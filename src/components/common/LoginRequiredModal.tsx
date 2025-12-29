@@ -49,7 +49,7 @@ export default function LoginRequiredModal({ isOpen, onOpenChange }: LoginRequir
             </Button>
             <Button
               onClick={handleLoginRedirect}
-              className="rounded-full bg-blue-600 px-6 hover:bg-blue-700"
+              className="rounded-full bg-blue-600 px-6 text-white hover:bg-blue-700"
             >
               <LogIn className="mr-2 h-4 w-4" />
               로그인

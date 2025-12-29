@@ -6,14 +6,14 @@ import { useRouter } from "next/navigation";
 import AiVoiceOption from "./AiVoiceOption";
 import MeetingBasicInfo from "./MeetingBasicInfo";
 import ReferenceMaterialUpload from "./ReferenceMaterialUpload";
-import { useCreateRoom } from "@/hooks/use-livekit-token";
+import { useCreateMediasoupRoom } from "@/hooks/use-mediasoup";
 import { CreateRoomFormValues, createRoomSchema } from "@/lib/schema/room/roomCreate.schema";
 import { useState } from "react";
 
 export default function CreateMeetingSecondStepForm() {
   const router = useRouter();
-  // 1. 방 생성 커스텀 훅 가져오기
-  const { mutate: createRoomMutate, isPending: isLoading } = useCreateRoom();
+  // 1. 방 생성 커스텀 훅 가져오기 (Mediasoup)
+  const { mutate: createRoomMutate, isPending: isLoading } = useCreateMediasoupRoom();
 
   // 2. formState로 useState 한방에 처리
   const [formState, setFormState] = useState({
