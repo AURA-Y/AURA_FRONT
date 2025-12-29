@@ -40,6 +40,11 @@ export function useAttendRoom() {
       });
       return response;
     },
+    /*
+      이 문제는 TanStack Query의 onSuccess 핸들러가 갖는 매개변수 특성을 이용하면 아주 간단하게 해결됩니다.
+
+      onSuccess는 단순히 API 결과(data)만 받는 것이 아니라, **함수를 실행할 때 넣었던 인자(variables)**도 함께 받을 수 있습니다.
+    */
 
     onSuccess: (data, variables) => {
       const { token } = data;

@@ -1,13 +1,23 @@
-import { getAllRooms } from "@/lib/api/api.room";
-import { GetAllRoomsResponse } from "@/lib/types/room.type";
+import { getAllRooms, getRoomByRoomId } from "@/lib/api/api.room";
+import { GetAllRoomsResponse, GetRoomResponse } from "@/lib/types/room.type";
 import { useQuery } from "@tanstack/react-query";
 
 export function useAllReadRooms() {
   return useQuery<GetAllRoomsResponse>({
     queryKey: ["Rooms"],
     queryFn: getAllRooms,
-
+    //인자가 없을때,
     staleTime: 1000 * 60 * 3,
+  });
+}
+
+export function useSearchRoom(roomId: string) {
+  return useQuery<GetRoomResponse>({
+    queryKey: ["Room", roomId],
+    queryFn: () => getRoomByRoomId(roomId),
+    //인자가 존재할 때,
+    staleTime: 1000 * 60 * 3,
+    enabled: !!roomId,
   });
 }
 

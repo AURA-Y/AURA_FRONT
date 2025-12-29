@@ -46,3 +46,14 @@ interface AttendRoomResponse {
 }
 
 export type { AttendRoomRequest, AttendRoomResponse };
+
+interface GetRoomResponse {
+  roomId: string;
+  roomTitle: string;
+  description: string;
+  maxParticipants: number;
+  createdBy: string;
+  createdAt: string;
+}
+
+export type { GetRoomResponse };
