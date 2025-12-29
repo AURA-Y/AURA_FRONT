@@ -15,6 +15,8 @@ interface AuthState {
   login: (email: string, password: string) => boolean;
   signup: (email: string, password: string, nickname: string) => boolean;
   logout: () => void;
+  isHydrated: boolean;
+  setHydrated: () => void;
 }
 export const useAuthStore = create<AuthState>()(
   persist(
@@ -63,10 +65,17 @@ export const useAuthStore = create<AuthState>()(
 
       // 로그아웃
       logout: () => set({ user: null }),
+
+      // Hydration 상태 관리
+      isHydrated: false,
+      setHydrated: () => set({ isHydrated: true }),
     }),
     {
       name: "auth-storage", // localStorage 키
       partialize: (state) => ({ user: state.user }), // user만 localStorage에 저장
+      onRehydrateStorage: () => (state) => {
+        state?.setHydrated();
+      },
     }
   )
 );

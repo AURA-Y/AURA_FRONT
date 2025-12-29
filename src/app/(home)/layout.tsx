@@ -9,16 +9,20 @@ import { usePathname, useRouter } from "next/navigation";
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   const user = useAuthStore((state) => state.user);
+  const isHydrated = useAuthStore((state) => state.isHydrated);
   const [showLoginModal, setShowLoginModal] = useState(false);
   const router = useRouter();
   const pathname = usePathname();
 
   useEffect(() => {
+    // Hydration이 완료되지 않았으면 검사하지 않음
+    if (!isHydrated) return;
+
     // 이미 로그인 페이지나 회원가입 페이지 등에 있다면 모달 띄우지 않음
     if (!user) {
       setShowLoginModal(true);
     }
-  }, [user, pathname]);
+  }, [user, isHydrated, pathname]);
 
   const handleModalOpenChange = (open: boolean) => {
     setShowLoginModal(open);
