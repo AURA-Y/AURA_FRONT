@@ -1,80 +1,78 @@
-// Mediasoup Room Creation Types
-export interface CreateMediasoupRoomRequest {
-  title: string;
-  hostId: string;
-}
-
-export interface CreateMediasoupRoomResponse {
-  roomId: string;
-  createdAt: string;
-}
-
-// Transport Types (for future use)
-// Mock types since mediasoup-client is not installed yet
-export type RTCIceParameters = any;
-export type RTCDtlsParameters = any;
-export type RTCIceCandidate = any;
-export type RtpParameters = any;
-
-// Basic RtpCapabilities type (matches mediasoup-client RtpCapabilities)
 export interface RtpCapabilities {
   codecs?: any[];
   headerExtensions?: any[];
   fecMechanisms?: any[];
 }
 
-export type DtlsParameters = any;
+export interface IceParameters {
+  usernameFragment: string;
+  password: string;
+  iceLite?: boolean;
+}
 
-export interface MediasoupTransportOptions {
+export interface IceCandidate {
+  foundation: string;
+  priority: number;
+  ip: string;
+  protocol: "udp" | "tcp";
+  port: number;
+  type: "host" | "srflx" | "prflx" | "relay";
+  tcpType?: "active" | "passive" | "so";
+}
+
+export interface DtlsParameters {
+  role?: "auto" | "client" | "server";
+  fingerprints: DtlsFingerprint[];
+}
+
+export interface DtlsFingerprint {
+  algorithm: string;
+  value: string;
+}
+
+export interface TransportOptions {
   id: string;
-  iceParameters: RTCIceParameters;
-  iceCandidates: RTCIceCandidate[];
-  dtlsParameters: RTCDtlsParameters;
+  iceParameters: IceParameters;
+  iceCandidates: IceCandidate[];
+  dtlsParameters: DtlsParameters;
 }
 
-export interface JoinRoomRequest {
-  userId: string;
-  displayName: string;
+// --- API DTOs ---
+
+// POST /api/room/create
+export interface CreateRoomRequest {
+  userName: string;
+  roomTitle?: string;
+  description?: string;
+  maxParticipants?: number;
 }
 
-export interface CreateTransportRequest {
-  direction: "send" | "recv";
+export interface CreateRoomResponse {
+  roomId: string;
+  roomUrl: string;
+  roomTitle: string;
+  description: string;
+  maxParticipants: number;
+  userName: string;
+  token: string; // LiveKit or App token
+  livekitUrl?: string; // Optional depending on backend
 }
 
-export interface ConnectTransportRequest {
-  dtlsParameters: RTCDtlsParameters;
-}
-
-export interface ProduceRequest {
-  kind: "audio" | "video";
-  rtpParameters: RtpParameters;
-  appData: { mediaType: string };
-}
-
-export interface ProduceResponse {
-  id: string;
-}
-
-export interface ConsumeRequest {
-  producerId: string;
+// GET /media/router/:roomId
+export interface GetRouterCapabilitiesResponse {
+  roomId: string;
   rtpCapabilities: RtpCapabilities;
 }
 
-export interface ConsumeResponse {
-  id: string;
-  producerId: string;
-  kind: "audio" | "video";
-  rtpParameters: RtpParameters;
+// POST /media/transport
+export interface CreateTransportRequest {
+  roomId: string;
+  // Backend code didn't show direction, but usually needed for differentiating send/recv.
+  // We'll pass it if the backend supports it, or just ignore if not.
+  // Ideally, the backend should accept consuming: boolean or direction: 'send' | 'recv'
+  // For now, adhering strictly to the provided snippets which only showed roomId in DTO (inferred).
+  // BUT, usually we need to distinguish. I will add it as optional or app-level handling.
+  direction?: "send" | "recv";
 }
 
-// Producer/Consumer Types (for future use)
-export interface ProducerOptions {
-  kind: "audio" | "video";
-  rtpParameters: any; // Will be typed more specifically later
-}
-
-export interface ConsumerOptions {
-  producerId: string;
-  kind: "audio" | "video";
-  rtpParameters: any;
-}
+export interface CreateTransportResponse extends TransportOptions {}

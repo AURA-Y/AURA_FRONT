@@ -10,7 +10,7 @@ import {
   produceMedia,
   consumeMedia,
 } from "@/lib/api/api.mediasoup";
-import { CreateMediasoupRoomRequest } from "@/lib/types/mediasoup.type";
+import { CreateRoomRequest } from "@/lib/types/mediasoup.type";
 import { toast } from "sonner";
 import { errorHandler } from "@/lib/utils";
 
@@ -21,7 +21,7 @@ export function useCreateMediasoupRoom() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (params: CreateMediasoupRoomRequest) => {
+    mutationFn: async (params: CreateRoomRequest) => {
       const response = await createMediasoupRoom(params);
       return response;
     },
@@ -79,7 +79,7 @@ export function useJoinMediasoupRoom() {
 export function useCreateTransport() {
   return useMutation({
     mutationFn: async ({ roomId, direction }: { roomId: string; direction: "send" | "recv" }) => {
-      return await createTransport(roomId, { direction });
+      return await createTransport(roomId, direction);
     },
     onError: (error) => errorHandler(error),
   });

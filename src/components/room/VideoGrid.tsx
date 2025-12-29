@@ -1,11 +1,14 @@
 import { motion, AnimatePresence } from "framer-motion";
-import { MicOff } from "lucide-react";
+import { MicOff, Headphones } from "lucide-react";
+import { useState, useEffect } from "react";
 
 interface VideoGridProps {
   participants: number[];
   isMicOn: boolean;
   isScreenSharing: boolean;
   userNickname?: string;
+  localStream?: MediaStream | null;
+  localIsSpeaking?: boolean;
 }
 
 export function VideoGrid({
@@ -13,8 +16,15 @@ export function VideoGrid({
   isMicOn,
   isScreenSharing,
   userNickname,
+  localStream,
+  localIsSpeaking,
 }: VideoGridProps) {
   const count = participants.length;
+  // Use passed prop for local speaking state (index 0)
+  const isSpeaking = localIsSpeaking || false;
+
+  // Local Audio Monitor State (Hearing myself)
+  const [isMonitoring, setIsMonitoring] = useState(false);
 
   const getItemStyle = () => {
     if (count === 1) return { width: "100%", maxWidth: "1200px" };
@@ -26,6 +36,12 @@ export function VideoGrid({
   };
 
   const itemStyle = getItemStyle();
+
+  // Ensure client-side rendering only for media components
+  const [isMounted, setIsMounted] = useState(false);
+  useEffect(() => setIsMounted(true), []);
+
+  if (!isMounted) return null;
 
   return (
     <div className="customized-scroll flex flex-1 items-center justify-center overflow-y-auto bg-[#0b0c15] p-4">
@@ -43,24 +59,57 @@ export function VideoGrid({
               exit={{ opacity: 0, scale: 0.9 }}
               transition={{
                 layout: { duration: 0.4, type: "spring", bounce: 0.1 },
-                opacity: { duration: 0.5, ease: "easeIn" }, // Slow start, fast end
-                scale: { duration: 0.5, ease: "easeIn" }, // Slow start, fast end
+                opacity: { duration: 0.5, ease: "easeIn" },
+                scale: { duration: 0.5, ease: "easeIn" },
               }}
-              className={`relative flex aspect-video flex-col items-center justify-center overflow-hidden rounded-2xl border border-white/5 bg-[#171821] shadow-2xl transition-all ${i === 0 && isMicOn ? "ring-2 ring-blue-500/50" : "hover:ring-1 hover:ring-white/10"}`} // Active speaker border simulation
+              className={`relative flex aspect-video flex-col items-center justify-center overflow-hidden rounded-2xl border-2 border-white/5 bg-[#171821] shadow-2xl transition-colors duration-200 ${
+                i === 0 && isMicOn && isSpeaking
+                  ? "border-blue-500 shadow-[0_0_20px_rgba(59,130,246,0.6)]" // Only color/shadow changes
+                  : "hover:border-white/20"
+              }`}
               style={{
                 ...itemStyle,
                 aspectRatio: "16/9",
               }}
             >
               {/* Avatar / Video Placeholder */}
-              <div className="group flex flex-col items-center gap-3 transition-transform duration-300 hover:scale-105">
-                <div
-                  className={`flex items-center justify-center rounded-full bg-linear-to-br from-blue-500 to-blue-700 font-bold text-white shadow-lg ${
-                    count === 1 ? "h-32 w-32 text-4xl" : "h-20 w-20 text-2xl"
-                  }`}
-                >
-                  {i === 0 ? userNickname?.[0] || "M" : `P${i + 1}`}
-                </div>
+              <div className="group flex h-full w-full flex-col items-center justify-center gap-3 transition-transform duration-300">
+                {/* Local User Video */}
+                {i === 0 && localStream ? (
+                  <>
+                    <video
+                      autoPlay
+                      playsInline
+                      muted={!isMonitoring} // Toggle mute based on monitoring state
+                      ref={(video) => {
+                        if (video && localStream && video.srcObject !== localStream) {
+                          video.srcObject = localStream;
+                        }
+                      }}
+                      className="h-full w-full object-cover"
+                    />
+                    {/* Monitor Toggle Button */}
+                    <button
+                      onClick={() => setIsMonitoring(!isMonitoring)}
+                      className={`absolute top-3 right-3 z-10 rounded-full p-2 transition-all ${
+                        isMonitoring
+                          ? "bg-blue-500 text-white shadow-[0_0_10px_rgba(59,130,246,0.5)]"
+                          : "bg-black/40 text-slate-400 hover:bg-black/60 hover:text-white"
+                      }`}
+                      title={isMonitoring ? "내 소리 끄기" : "내 소리 듣기 (하울링 주의)"}
+                    >
+                      <Headphones size={16} />
+                    </button>
+                  </>
+                ) : (
+                  <div
+                    className={`flex items-center justify-center rounded-full bg-linear-to-br from-blue-500 to-blue-700 font-bold text-white shadow-lg ${
+                      count === 1 ? "h-32 w-32 text-4xl" : "h-20 w-20 text-2xl"
+                    }`}
+                  >
+                    {i === 0 ? userNickname?.[0] || "M" : `P${i + 1}`}
+                  </div>
+                )}
               </div>
 
               {/* Status Indicators (Discord Style: Bottom Left Name Tag) */}
@@ -75,6 +124,13 @@ export function VideoGrid({
               {i === 0 && isScreenSharing && (
                 <div className="absolute top-3 left-3 rounded-md bg-black/60 px-2 py-1 text-xs font-semibold text-white backdrop-blur-md">
                   화면 공유 중
+                </div>
+              )}
+
+              {/* Monitoring Warning Overlay */}
+              {i === 0 && isMonitoring && (
+                <div className="absolute bottom-12 left-1/2 -translate-x-1/2 rounded-full bg-red-500/90 px-3 py-1 text-[10px] font-bold whitespace-nowrap text-white shadow-lg backdrop-blur-sm">
+                  내 소리 듣는 중 (하울링 주의 🎧)
                 </div>
               )}
             </motion.div>
