@@ -16,7 +16,6 @@ const CreateFooterActions = ({ totalSelectedCount, onClick }: CreateFooterAction
       <Button
         size="lg"
         className="bg-blue-600 text-white hover:bg-blue-700 dark:bg-blue-600 dark:text-white"
-        disabled={totalSelectedCount === 0}
         onClick={onClick}
       >
         다음 단계 <ChevronRight className="ml-2 h-4 w-4" />
