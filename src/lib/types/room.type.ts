@@ -36,7 +36,7 @@ interface GetAllRoomsResponse {
 export type { Room, GetAllRoomsResponse };
 
 interface AttendRoomRequest {
-  roomName: string;
+  roomId: string;
   userName: string;
 }
 

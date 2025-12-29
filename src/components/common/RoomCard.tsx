@@ -13,7 +13,7 @@ export default function RoomCard({ room }: { room: Room }) {
 
   const handleJoin = () => {
     attendMutate({
-      roomName: room.roomId,
+      roomId: room.roomId,
       userName: "김철수",
     });
   };
