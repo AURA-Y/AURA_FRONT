@@ -15,7 +15,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <Providers>
           <div className="mx-auto flex min-h-screen flex-col">
             {/* Header Configuration matching the provided design */}
-            <main>{children}</main>
+            <main className="w-full">{children}</main>
           </div>
         </Providers>
       </body>

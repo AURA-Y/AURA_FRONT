@@ -19,22 +19,23 @@ export default function PastMeetingsBoardPage() {
   const outerScrollClass = selected ? "overflow-hidden" : "ghost-scroll-zero overflow-y-auto";
 
   return (
-    <div
-      className={`mx-auto max-h-[calc(100vh-110px)] w-full max-w-6xl space-y-4 px-4 pb-6 ${outerScrollClass}`}
-    >
-      {/* 회의 item header */}
-      <div className="flex flex-col gap-1">
-        <h1 className="text-2xl font-bold">지난 회의록</h1>
-        <p className="text-sm text-slate-500">
-          목록에서 회의를 선택하면 전체 회의록을 볼 수 있습니다.
-        </p>
+    <div className="min-h-screen w-full bg-slate-50 p-6 text-slate-900 dark:bg-slate-950 dark:text-slate-100">
+      <div className="mx-auto max-w-5xl space-y-8">
+        {/* <div className={`mx-auto max-w-5xl space-y-4 px-4 pb-6 ${outerScrollClass}`}> */}
+        {/* 회의 item header */}
+        <div className="flex flex-col gap-1">
+          <h1 className="text-2xl font-bold">지난 회의록</h1>
+          <p className="text-sm text-slate-500">
+            목록에서 회의를 선택하면 전체 회의록을 볼 수 있습니다.
+          </p>
+        </div>
+
+        {/* 회의 item closed container */}
+        <ItemHeader selected={selected} onSelect={handleSelect} />
+
+        {/* 회의 item opened container */}
+        <ItemOpen selected={selected} onClose={handleClose} />
       </div>
-
-      {/* 회의 item closed container */}
-      <ItemHeader selected={selected} onSelect={handleSelect} />
-
-      {/* 회의 item opened container */}
-      <ItemOpen selected={selected} onClose={handleClose} />
     </div>
   );
 }
