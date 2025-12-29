@@ -57,7 +57,10 @@ const Header = () => {
           <div className="flex items-center gap-3">
             {user ? (
               // 로그인 상태
-              <LoggedInUserActions nickname={user.nickname} onLogoutClick={handleLogoutClick} />
+              <LoggedInUserActions
+                displayName={user.name || user.username}
+                onLogoutClick={handleLogoutClick}
+              />
             ) : (
               // 비로그인 상태
               <GuestActions />

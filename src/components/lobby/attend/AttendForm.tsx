@@ -2,7 +2,7 @@
 
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { joinRoomSchema, JoinRoomFormValues } from "@/lib/schema/auth.schema";
+import { joinRoomSchema, JoinRoomFormValues } from "@/lib/schema/room/roomCreate.schema";
 import { useAuthStore } from "@/lib/store/auth.store";
 import { extractRoomId } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
@@ -23,9 +23,9 @@ export default function AttendForm() {
   } = useForm<JoinRoomFormValues>({
     resolver: async (values, context, options) => {
       const result = await zodResolver(joinRoomSchema)(
-        { ...values, user: user?.nickname || "anonymous" },
+        { ...values, user: user?.name || user?.username || "anonymous" },
         context,
-        options
+        options,
       );
       return result;
     },

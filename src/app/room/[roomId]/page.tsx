@@ -197,7 +197,7 @@ export default function RoomPage() {
           participants={participants}
           isMicOn={isMicOn}
           isScreenSharing={isScreenSharing}
-          userNickname={user?.nickname}
+          userNickname={user?.name || user?.username}
           localStream={gatedStream} // Pass the processed stream
           localIsSpeaking={isSpeaking}
         />

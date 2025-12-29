@@ -2,16 +2,16 @@ import { User, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface LoggedInUserActionsProps {
-  nickname: string;
+  displayName: string;
   onLogoutClick: () => void;
 }
 
-export default function LoggedInUserActions({ nickname, onLogoutClick }: LoggedInUserActionsProps) {
+export default function LoggedInUserActions({ displayName, onLogoutClick }: LoggedInUserActionsProps) {
   return (
     <>
       <div className="hidden items-center gap-2 rounded-full bg-blue-50 px-4 py-2 md:flex">
         <User className="h-4 w-4 text-blue-600" />
-        <span className="text-sm font-semibold text-blue-700">{nickname}</span>
+        <span className="text-sm font-semibold text-blue-700">{displayName}</span>
       </div>
       <Button
         onClick={onLogoutClick}
