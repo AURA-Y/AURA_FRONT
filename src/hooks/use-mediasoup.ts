@@ -319,14 +319,29 @@ export function useMediasoup({ roomId, nickname, signallingUrl, localStream }: U
   // 2. Publish Local Stream
   useEffect(() => {
     const publish = async () => {
-      if (status !== "connected" || !sendTransportRef.current || !localStream) return;
+      console.log("[useMediasoup] Checking publish conditions:", {
+        status,
+        hasSendTransport: !!sendTransportRef.current,
+        hasLocalStream: !!localStream,
+        tracks: localStream?.getTracks().map((t) => t.kind),
+      });
 
+      if (status !== "connected" || !sendTransportRef.current || !localStream) {
+        console.log("[useMediasoup] Skipping publish (conditions not met)");
+        return;
+      }
+
+      console.log("[useMediasoup] Starting to publish tracks...");
       const tracks = localStream.getTracks();
 
       for (const track of tracks) {
-        if (publishedTracksRef.current.has(track.id)) continue;
+        if (publishedTracksRef.current.has(track.id)) {
+          console.log(`[useMediasoup] Track ${track.id} (${track.kind}) already published`);
+          continue;
+        }
 
         try {
+          console.log(`[useMediasoup] Producing ${track.kind} track...`);
           const producer = await sendTransportRef.current.produce({
             track,
             // Add simple encodings for video
@@ -337,17 +352,20 @@ export function useMediasoup({ roomId, nickname, signallingUrl, localStream }: U
               : {}),
           });
 
+          console.log(`[useMediasoup] Successfully produced ${track.kind} (id: ${producer.id})`);
+
           producersRef.current.set(track.kind, producer);
           publishedTracksRef.current.add(track.id);
 
           producer.on("trackended", () => {
+            console.log(`[useMediasoup] Track ended: ${track.kind}`);
             // Handle track ended (e.g. device unplugged)
           });
 
           // If the local track is stopped, we should close producer, but 'trackended' might fire.
           // In React, if localStream changes, this effect runs again.
         } catch (e) {
-          console.error("Publish error", e);
+          console.error(`[useMediasoup] Publish error for ${track.kind}:`, e);
         }
       }
     };
