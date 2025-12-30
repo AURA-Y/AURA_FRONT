@@ -1,80 +1,113 @@
+import axios from "axios";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-// 사용자 타입 정의
+import { api } from "@/lib/utils";
+import { login as loginApi, register as registerApi } from "@/lib/api/api.auth";
+
 interface User {
   id: string;
-  email: string;
+  username: string;
+  name: string;
   nickname: string;
+  email: string;
 }
-interface AuthState {
-  // 상태
-  user: User | null;
-  users: User[]; // 목데이터 (가상 DB)
 
-  // 액션
-  login: (email: string, password: string) => boolean;
-  signup: (email: string, password: string, nickname: string) => boolean;
+interface AuthState {
+  user: User | null;
+  accessToken: string | null;
+  login: (email: string, password: string) => Promise<void>;
+  signup: (email: string, password: string, nickname: string) => Promise<void>;
   logout: () => void;
   isHydrated: boolean;
   setHydrated: () => void;
 }
+
+const AUTH_STORAGE_KEY = "auth-storage";
+
+const setAuthHeader = (token?: string | null) => {
+  if (token) {
+    api.defaults.headers.common.Authorization = `Bearer ${token}`;
+  } else {
+    delete api.defaults.headers.common.Authorization;
+  }
+};
+
+export const getStoredToken = (): string | null => {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = localStorage.getItem(AUTH_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return parsed?.state?.accessToken || null;
+  } catch {
+    return null;
+  }
+};
+
+const mapUser = (user: { id: string; username: string; name: string }): User => ({
+  id: user.id,
+  username: user.username,
+  name: user.name,
+  nickname: user.name || user.username,
+  email: user.username,
+});
+
+const extractMessage = (error: unknown, fallback: string) => {
+  if (axios.isAxiosError(error)) {
+    return (error.response?.data as any)?.message || fallback;
+  }
+  if (error instanceof Error) {
+    return error.message;
+  }
+  return fallback;
+};
+
 export const useAuthStore = create<AuthState>()(
   persist(
     (set, get) => ({
-      // 초기 상태
       user: null,
-      users: [
-        // 목데이터 (테스트용)
-        { id: "1", email: "test@example.com", nickname: "테스트유저" },
-        { id: "2", email: "test1@example.com", nickname: "테스트" },
-      ],
+      accessToken: null,
 
-      // 로그인 로직
-      login: (email, password) => {
-        const { users } = get();
-        const foundUser = users.find((u) => u.email === email);
-
-        if (foundUser && password === "123456") {
-          // 간단한 비밀번호 체크
-          set({ user: foundUser });
-          return true;
+      login: async (email, password) => {
+        try {
+          const { data } = await loginApi(email, password);
+          const user = mapUser(data.user);
+          setAuthHeader(data.accessToken);
+          set({ user, accessToken: data.accessToken });
+        } catch (error) {
+          throw new Error(extractMessage(error, "로그인에 실패했습니다."));
         }
-        return false;
       },
 
-      // 회원가입 로직
-      signup: (email, password, nickname) => {
-        const { users } = get();
-
-        // 이메일 중복 체크
-        if (users.find((u) => u.email === email)) {
-          return false;
+      signup: async (email, password, nickname) => {
+        try {
+          const { data } = await registerApi(email, password, nickname);
+          const user = mapUser(data.user);
+          setAuthHeader(data.accessToken);
+          set({ user, accessToken: data.accessToken });
+        } catch (error) {
+          throw new Error(extractMessage(error, "회원가입에 실패했습니다."));
         }
-
-        const newUser: User = {
-          id: Date.now().toString(),
-          email,
-          nickname,
-        };
-
-        set({
-          users: [...users, newUser],
-          user: newUser, // 회원가입 후 자동 로그인
-        });
-        return true;
       },
 
-      // 로그아웃
-      logout: () => set({ user: null }),
+      logout: () => {
+        setAuthHeader(null);
+        if (typeof window !== "undefined") {
+          localStorage.removeItem(AUTH_STORAGE_KEY);
+        }
+        set({ user: null, accessToken: null });
+      },
 
-      // Hydration 상태 관리
       isHydrated: false,
       setHydrated: () => set({ isHydrated: true }),
     }),
     {
-      name: "auth-storage", // localStorage 키
-      partialize: (state) => ({ user: state.user }), // user만 localStorage에 저장
+      name: AUTH_STORAGE_KEY,
+      partialize: (state) => ({ user: state.user, accessToken: state.accessToken }),
       onRehydrateStorage: () => (state) => {
+        if (state?.accessToken) {
+          setAuthHeader(state.accessToken);
+        }
         state?.setHydrated();
       },
     }

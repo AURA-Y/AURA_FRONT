@@ -1,43 +1,33 @@
 import z from "zod";
 
-const commonUserSchema = z
-  .string()
-  .trim()
-  .min(1, "닉네임을 입력해주세요.")
-  .max(12, "닉네임은 12글자 이내여야 합니다.")
-  .regex(/^[a-zA-Z0-9가-힣]+$/, "특수문자는 사용할 수 없습니다.");
-
-const joinRoomSchema = z.object({
-  room: z.string().trim().min(1, "방 이름을 입력해주세요."),
-  user: commonUserSchema,
-});
-
-const createRoomSchema = z.object({
-  user: commonUserSchema,
-});
+const emailMessage = "올바른 이메일 형식을 입력해주세요.";
+const passwordMessage = "비밀번호는 최소 6자 이상 입력해주세요.";
 
 // 로그인 스키마
 const loginSchema = z.object({
-  email: z.string().email("올바른 이메일 형식이 아닙니다"),
-  password: z.string().min(6, "비밀번호는 최소 6자 이상이어야 합니다"),
+  email: z.string().email(emailMessage),
+  password: z.string().min(6, passwordMessage),
 });
+
 // 회원가입 스키마
 const signupSchema = z
   .object({
-    email: z.string().email("올바른 이메일 형식이 아닙니다"),
-    password: z.string().min(6, "비밀번호는 최소 6자 이상이어야 합니다"),
+    email: z.string().email(emailMessage),
+    password: z.string().min(6, passwordMessage),
     confirmPassword: z.string(),
-    nickname: z.string().min(2, "닉네임은 최소 2자 이상이어야 합니다"),
+    nickname: z
+      .string()
+      .trim()
+      .min(2, "닉네임은 최소 2자 이상이어야 합니다.")
+      .max(20, "닉네임은 20자 이내로 입력해주세요."),
   })
   .refine((data) => data.password === data.confirmPassword, {
-    message: "비밀번호가 일치하지 않습니다",
+    message: "비밀번호가 일치하지 않습니다.",
     path: ["confirmPassword"],
   });
-// TypeScript 타입 추출
+
 type LoginFormValues = z.infer<typeof loginSchema>;
 type SignupFormValues = z.infer<typeof signupSchema>;
-type JoinRoomFormValues = z.infer<typeof joinRoomSchema>;
-type CreateRoomFormValues = z.infer<typeof createRoomSchema>;
-export { loginSchema, signupSchema, joinRoomSchema, createRoomSchema };
 
-export type { LoginFormValues, SignupFormValues, JoinRoomFormValues, CreateRoomFormValues };
+export { loginSchema, signupSchema };
+export type { LoginFormValues, SignupFormValues };

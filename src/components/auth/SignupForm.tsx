@@ -23,14 +23,14 @@ export default function SignupForm() {
     resolver: zodResolver(signupSchema),
   });
 
-  const onSubmit = (data: SignupFormValues) => {
-    const success = signup(data.email, data.password, data.nickname);
-
-    if (success) {
-      toast.success("회원가입 성공! 로그인해주세요.");
+  const onSubmit = async (data: SignupFormValues) => {
+    try {
+      await signup(data.email, data.password, data.nickname);
+      toast.success("회원가입이 완료되었습니다. 로그인해주세요.");
       router.push("/login");
-    } else {
-      toast.error("이미 존재하는 이메일입니다.");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "회원가입에 실패했습니다.";
+      toast.error(message);
     }
   };
 
@@ -64,7 +64,7 @@ export default function SignupForm() {
           <Input
             id="nickname"
             {...register("nickname")}
-            placeholder="사용할 닉네임"
+            placeholder="사용할 닉네임을 입력하세요"
             className="focus:ring-primary/20 pl-10 transition-all focus:ring-2"
           />
         </div>
@@ -82,7 +82,7 @@ export default function SignupForm() {
             id="password"
             {...register("password")}
             type="password"
-            placeholder="••••••••"
+            placeholder="********"
             className="focus:ring-primary/20 pl-10 transition-all focus:ring-2"
           />
         </div>
@@ -100,7 +100,7 @@ export default function SignupForm() {
             id="confirmPassword"
             {...register("confirmPassword")}
             type="password"
-            placeholder="••••••••"
+            placeholder="********"
             className="focus:ring-primary/20 pl-10 transition-all focus:ring-2"
           />
         </div>

@@ -4,6 +4,7 @@ import { twMerge } from "tailwind-merge";
 import axios from "axios";
 import { env } from "@/env.mjs";
 import { toast } from "sonner";
+import { getStoredToken } from "@/lib/store/auth.store";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -14,13 +15,25 @@ export const api = axios.create({
   headers: { "Content-Type": "application/json" },
 });
 
+// 요청마다 로컬스토리지에 저장된 JWT를 자동으로 실어 보냄
+api.interceptors.request.use((config) => {
+  const token = getStoredToken();
+  if (token && !config.headers.Authorization) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+
+export const livekitApi = axios.create({
+  baseURL: env.NEXT_PUBLIC_LIVEKIT_API_URL,
+  headers: { "Content-Type": "application/json" },
+});
+
 export function extractRoomId(input: string): string {
   const trimmedInput = input.trim();
 
   try {
-    // https://my-app.com/room/abc-123
     const url = new URL(trimmedInput);
-    // pathname : "/room/abc-123" -> ["", "room" , "abc-123" ]
     const pathParts = url.pathname.split("/").filter(Boolean);
 
     return pathParts[pathParts.length - 1] || trimmedInput;
@@ -52,10 +65,8 @@ export const toggleMeetingSelection = (meeting: Meeting, selectedIds: Set<string
 
   const newSet = new Set(selectedIds);
   if (!isAll) {
-    // Select all
     subIds.forEach((id) => newSet.add(id));
   } else {
-    // Deselect all
     subIds.forEach((id) => newSet.delete(id));
   }
   return newSet;
@@ -79,17 +90,14 @@ export const calculateTotalSelectedCount = (
 };
 
 export const errorHandler = (error: unknown) => {
-  // 1. 400 , 500 에러 (서버에서 오류)
   if (axios.isAxiosError(error)) {
-    const errorMessage = error.response?.data?.message || "방 생성이 실패했습니다.";
+    const errorMessage = error.response?.data?.message || "요청 처리 중 문제가 발생했습니다.";
     toast.error(errorMessage);
     return;
   }
-  //  2. 일반적인 에러 처리
   console.error("Unknown Error : ", error);
   toast.error("알 수 없는 오류가 발생했습니다.");
 };
-
 
 export const formatDate = (value: string) =>
   new Intl.DateTimeFormat("ko-KR", { dateStyle: "medium", timeStyle: "short" }).format(

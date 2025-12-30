@@ -23,14 +23,14 @@ export default function LoginForm() {
     resolver: zodResolver(loginSchema),
   });
 
-  const onSubmit = (data: LoginFormValues) => {
-    const success = login(data.email, data.password);
-
-    if (success) {
-      toast.success("로그인 성공!");
+  const onSubmit = async (data: LoginFormValues) => {
+    try {
+      await login(data.email, data.password);
+      toast.success("로그인에 성공했습니다!");
       router.push("/");
-    } else {
-      toast.error("이메일 또는 비밀번호가 잘못되었습니다.");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "로그인에 실패했습니다.";
+      toast.error(message);
     }
   };
 
@@ -65,7 +65,7 @@ export default function LoginForm() {
             id="password"
             {...register("password")}
             type="password"
-            placeholder="••••••••"
+            placeholder="********"
             className="focus:ring-primary/20 pl-10 transition-all focus:ring-2"
           />
         </div>
@@ -83,7 +83,7 @@ export default function LoginForm() {
 
       {/* 회원가입 링크 */}
       <div className="text-center text-sm">
-        <span className="text-muted-foreground">계정이 없으신가요? </span>
+        <span className="text-muted-foreground">아직 계정이 없으신가요? </span>
         <Link href="/signup" className="text-primary font-medium transition-colors hover:underline">
           회원가입
         </Link>
