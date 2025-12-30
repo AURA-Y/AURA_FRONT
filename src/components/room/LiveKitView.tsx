@@ -21,16 +21,12 @@ const RoomContent = () => {
 
   return (
     <>
-      <div style={{ display: "flex", flex: 1, overflow: "hidden" }}>
+      <div className="flex flex-1 overflow-hidden">
         <VideoGrid />
         <div
-          style={{
-            width: "320px",
-            height: "100%",
-            borderLeft: "1px solid #333",
-            backgroundColor: "#0e0e0e",
-            display: showChat ? "block" : "none",
-          }}
+          className={`h-full w-[320px] border-l border-[#333] bg-[#0e0e0e] ${
+            showChat ? "block" : "hidden"
+          }`}
         >
           <Chat style={{ width: "100%", height: "100%" }} />
         </div>
