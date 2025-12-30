@@ -116,65 +116,59 @@ function RemotePeerVideo({
     const tracks = peer.stream.getTracks();
     console.log(`[RemotePeerVideo] Stream updated for peer ${peer.id}, tracks:`, tracks.length, tracks.map(t => `${t.kind}(id:${t.id.slice(0,8)})`));
 
-    // Skip if no tracks yet (wait for actual media)
+    // Always set srcObject to ensure it's up to date
+    console.log(`[RemotePeerVideo] Setting srcObject for peer ${peer.id}`);
+    video.srcObject = peer.stream;
+
+    // Skip play if no tracks yet (wait for actual media)
     if (tracks.length === 0) {
       console.log(`[RemotePeerVideo] Skipping play() - no tracks yet for peer ${peer.id}`);
       return;
     }
 
-    // Only set srcObject if it's different
-    if (video.srcObject !== peer.stream) {
-      console.log(`[RemotePeerVideo] Setting srcObject for peer ${peer.id}`);
-      video.srcObject = peer.stream;
-    } else {
-      console.log(`[RemotePeerVideo] srcObject already set, checking video dimensions...`);
-      // Stream object is the same, but tracks might have been added
-      // Wait a bit for video to load
-      setTimeout(() => {
-        console.log(`[RemotePeerVideo] Video dimensions after delay:`, {
-          videoWidth: video.videoWidth,
-          videoHeight: video.videoHeight,
-          readyState: video.readyState
-        });
-      }, 500);
-    }
+    // Helper function to attempt playback
+    const attemptPlay = () => {
+      // Try unmuted first, then fallback to muted
+      video.muted = false;
+      video.volume = 1.0;
 
-    // Try unmuted first, then fallback to muted
-    video.muted = false;
-    video.volume = 1.0;
+      console.log(`[RemotePeerVideo] Calling play() UNMUTED for peer ${peer.id}...`);
+      const playPromise = video.play();
+      if (playPromise !== undefined) {
+        playPromise
+          .then(() => {
+            console.log(`[RemotePeerVideo] ✓✓✓ Video PLAYING UNMUTED for peer ${peer.id}`);
+            setIsVideoMuted(false);
+          })
+          .catch((err) => {
+            console.log(`[RemotePeerVideo] Unmuted play failed (${err.name}), trying muted:`, err.message);
+            video.muted = true;
+            setIsVideoMuted(true);
+            video.play()
+              .then(() => {
+                console.log(`[RemotePeerVideo] ✓ Now playing MUTED for peer ${peer.id}`);
+              })
+              .catch((mutedErr) => {
+                console.error(`[RemotePeerVideo] ✗ Even muted play failed:`, mutedErr);
+              });
+          });
+      }
+    };
 
-    // Attempt to play (only when we have tracks)
-    console.log(`[RemotePeerVideo] Calling play() UNMUTED for peer ${peer.id}...`);
-    const playPromise = video.play();
-    if (playPromise !== undefined) {
-      playPromise
-        .then(() => {
-          console.log(`[RemotePeerVideo] ✓✓✓ Video PLAYING UNMUTED for peer ${peer.id}`);
-          setIsVideoMuted(false);
-          // Log video dimensions after play
-          setTimeout(() => {
-            console.log(`[RemotePeerVideo] Video dimensions for peer ${peer.id}:`, {
-              videoWidth: video.videoWidth,
-              videoHeight: video.videoHeight,
-              readyState: video.readyState,
-              muted: video.muted,
-              tracks: peer.stream?.getTracks().map(t => ({ kind: t.kind, enabled: t.enabled, muted: t.muted, readyState: t.readyState }))
-            });
-          }, 1000);
-        })
-        .catch((err) => {
-          console.log(`[RemotePeerVideo] Unmuted play failed (${err.name}), trying muted:`, err.message);
-          video.muted = true;
-          setIsVideoMuted(true);
-          video.play()
-            .then(() => {
-              console.log(`[RemotePeerVideo] ✓ Now playing MUTED for peer ${peer.id}`);
-            })
-            .catch((mutedErr) => {
-              console.error(`[RemotePeerVideo] ✗ Even muted play failed:`, mutedErr);
-            });
-        });
-    }
+    // Attempt to play immediately
+    attemptPlay();
+
+    // Also retry after a short delay to ensure video is ready
+    const retryTimer = setTimeout(() => {
+      console.log(`[RemotePeerVideo] Retry play after delay for peer ${peer.id}`);
+      if (video.paused) {
+        attemptPlay();
+      }
+    }, 100);
+
+    return () => {
+      clearTimeout(retryTimer);
+    };
   }, [peer.stream, peer.id]);
 
   return (
@@ -239,6 +233,14 @@ function RemotePeerVideo({
             videoWidth: video.videoWidth,
             videoHeight: video.videoHeight,
           });
+
+          // Trigger play when metadata is loaded (video is ready)
+          if (video.paused) {
+            console.log(`[RemotePeerVideo] Triggering play from loadedmetadata event`);
+            video.play().catch((err) => {
+              console.log(`[RemotePeerVideo] Play from metadata failed:`, err.message);
+            });
+          }
         }}
         onPlay={(e) => {
           const video = e.currentTarget;
