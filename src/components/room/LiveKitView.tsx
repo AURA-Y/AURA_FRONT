@@ -71,7 +71,7 @@ const LiveKitView = ({ token, onDisconnected }: LiveKitViewProps) => {
       video={true}
       audio={true}
       token={token}
-      serverUrl={env.NEXT_PUBLIC_LIVEKIT_API_URL}
+      serverUrl={env.NEXT_PUBLIC_LIVEKIT_URL}
       options={roomOptions}
       onDisconnected={onDisconnected}
       onError={(e) => console.error(e)}
