@@ -31,7 +31,7 @@ export default function RoomPage() {
   const { stream: gatedStream, isSpeaking } = useNoiseGate(sourceStream, 0.05);
 
   // Mediasoup Hook
-  const { status, error, peers } = useMediasoup({
+  const { status, error, peers, socket } = useMediasoup({
     roomId,
     nickname: user?.nickname || "Guest",
     signallingUrl:
@@ -44,12 +44,21 @@ export default function RoomPage() {
   const initLocalMedia = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: true,
+        video: {
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
+          frameRate: { ideal: 30 },
+        },
         audio: {
           echoCancellation: { ideal: true },
           noiseSuppression: { ideal: true },
           autoGainControl: false, // Turn off AGC to prevent boosting background noise
         },
+      });
+      console.log("[initLocalMedia] Got media stream:", {
+        videoTracks: stream.getVideoTracks().length,
+        audioTracks: stream.getAudioTracks().length,
+        videoSettings: stream.getVideoTracks()[0]?.getSettings(),
       });
       setSourceStream(stream);
       setIsCamOn(true);
@@ -79,6 +88,7 @@ export default function RoomPage() {
     };
   }, []);
 
+    // If we refreshed less than 30 seconds ago, don't refresh again (prevent infinite loop)
   // Control visibility logic
   const [showControls, setShowControls] = useState(true);
   const [isAnyMenuOpen, setIsAnyMenuOpen] = useState(false);
@@ -108,6 +118,69 @@ export default function RoomPage() {
     }
   }, [isAnyMenuOpen]);
 
+  // Auto-refresh on connection issues (improved version)
+  useEffect(() => {
+    if (status !== "connected") return;
+
+    // Check if this is a fresh load or a refresh
+    const REFRESH_KEY = `room-refresh-${roomId}`;
+    const lastRefresh = localStorage.getItem(REFRESH_KEY);
+    const now = Date.now();
+
+    // If we refreshed less than 30 seconds ago, don't refresh again (prevent infinite loop)
+    if (lastRefresh && now - parseInt(lastRefresh) < 30000) {
+      console.log("[Auto-refresh] Recently refreshed, skipping auto-refresh check");
+      return;
+    }
+
+    // Wait 15 seconds after connection to check peer status
+    const checkTimer = setTimeout(() => {
+      // Count peers with actual media (at least one track)
+      let peersWithMedia = 0;
+      peers.forEach((peer) => {
+        const trackCount = peer.stream?.getTracks().length || 0;
+        if (trackCount > 0) {
+          peersWithMedia++;
+        }
+      });
+
+      console.log("[Auto-refresh] Checking connection health...", {
+        status,
+        totalPeers: peers.size,
+        peersWithMedia,
+        hasSocket: !!socket,
+      });
+
+      // Trigger refresh if:
+      // 1. We're connected but have no peers with actual media
+      // 2. This indicates a connection problem (bot doesn't count)
+      const shouldRefresh = status === "connected" && peersWithMedia === 0;
+
+      if (shouldRefresh) {
+        console.log("[Auto-refresh] Connection issue detected (no peers with media), will refresh in 3 seconds...");
+
+        // Show toast notification
+        toast.warning("연결 문제 감지", {
+          description: "참가자가 보이지 않습니다. 3초 후 자동으로 새로고침됩니다...",
+          duration: 3000,
+        });
+
+        // Wait 3 seconds, then refresh
+        setTimeout(() => {
+          console.log("[Auto-refresh] Refreshing page...");
+          localStorage.setItem(REFRESH_KEY, now.toString());
+          window.location.reload();
+        }, 3000);
+      } else {
+        console.log(`[Auto-refresh] ✓ Connection looks healthy (${peersWithMedia} peers with media)`);
+      }
+    }, 15000); // Check after 15 seconds
+
+    return () => {
+      clearTimeout(checkTimer);
+    };
+  }, [status, peers, roomId, socket]);
+
   const handleScreenShareClick = () => {
     if (isScreenSharing) {
       // Stop Screen Share (Revert to Camera)
@@ -123,8 +196,17 @@ export default function RoomPage() {
     // For standard Web API, we just call getDisplayMedia().
     try {
       const screenStream = await navigator.mediaDevices.getDisplayMedia({
-        video: true,
+        video: {
+          width: { ideal: 1920 },
+          height: { ideal: 1080 },
+          frameRate: { ideal: 30 },
+        },
         audio: false, // System audio optional
+      });
+
+      console.log("[handleStartShare] Got screen stream:", {
+        videoTracks: screenStream.getVideoTracks().length,
+        videoSettings: screenStream.getVideoTracks()[0]?.getSettings(),
       });
 
       setSourceStream(screenStream);
@@ -169,21 +251,38 @@ export default function RoomPage() {
       // Re-acquire with specific device
       try {
         const constraints: MediaStreamConstraints = {
-          audio: kind === "audioinput" ? { deviceId: { exact: deviceId } } : true,
-          video: kind === "videoinput" ? { deviceId: { exact: deviceId } } : true,
+          audio: kind === "audioinput"
+            ? {
+                deviceId: { exact: deviceId },
+                echoCancellation: { ideal: true },
+                noiseSuppression: { ideal: true },
+                autoGainControl: false,
+              }
+            : {
+                echoCancellation: { ideal: true },
+                noiseSuppression: { ideal: true },
+                autoGainControl: false,
+              },
+          video: kind === "videoinput"
+            ? {
+                deviceId: { exact: deviceId },
+                width: { ideal: 1280 },
+                height: { ideal: 720 },
+                frameRate: { ideal: 30 },
+              }
+            : {
+                width: { ideal: 1280 },
+                height: { ideal: 720 },
+                frameRate: { ideal: 30 },
+              },
         };
-        if (kind === "audioinput") {
-          // Preserve video track if we only change audio?
-          // Simplest is to just re-get huge stream for now or smart replace.
-          // Let's stick to simple re-init for prototype
-          constraints.video = true;
-          constraints.audio = { deviceId: { exact: deviceId } };
-        } else {
-          constraints.video = { deviceId: { exact: deviceId } };
-          constraints.audio = true;
-        }
 
         const newStream = await navigator.mediaDevices.getUserMedia(constraints);
+        console.log("[handleDeviceChange] Got new stream:", {
+          videoTracks: newStream.getVideoTracks().length,
+          audioTracks: newStream.getAudioTracks().length,
+          videoSettings: newStream.getVideoTracks()[0]?.getSettings(),
+        });
         setSourceStream(newStream);
       } catch (e) {
         console.error("Failed to switch device", e);
@@ -210,7 +309,14 @@ export default function RoomPage() {
           localStream={gatedStream} // Pass the processed stream
           localIsSpeaking={isSpeaking}
         />
-        <ChatSidebar isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} />
+        <ChatSidebar
+          isOpen={isChatOpen}
+          onClose={() => setIsChatOpen(false)}
+          socket={socket}
+          roomId={roomId}
+          nickname={user?.nickname || "Guest"}
+          peers={peers}
+        />
       </div>
 
       {/* Control Bar */}
@@ -238,10 +344,8 @@ export default function RoomPage() {
         onScreenShareToggle={handleScreenShareClick}
         onChatToggle={() => setIsChatOpen(!isChatOpen)}
         onLeave={handleLeaveRoom}
-        onAddParticipant={() => setParticipants((prev) => [...prev, prev.length + 1])}
-        onRemoveParticipant={() =>
-          setParticipants((prev) => (prev.length > 1 ? prev.slice(0, -1) : prev))
-        }
+        onAddParticipant={() => console.log("Add participant (not implemented)")}
+        onRemoveParticipant={() => console.log("Remove participant (not implemented)")}
         // New Props
         inputVolume={inputVolume}
         onInputVolumeChange={setInputVolume}

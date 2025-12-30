@@ -1,14 +1,19 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { io, Socket } from "socket.io-client";
 import * as mediasoupClient from "mediasoup-client";
-import type { Consumer, Device, Transport, Producer } from "mediasoup-client/lib/types";
+import { types } from "mediasoup-client";
 
 // Helper for socket Promise emit
-const emitAsync = <T, P = Record<string, unknown>>(socket: Socket, event: string, payload?: P) =>
+const emitAsync = <T, P = Record<string, unknown>>(
+  socket: Socket,
+  event: string,
+  payload?: P,
+  timeout: number = 30000 // Increased default timeout to 30 seconds
+) =>
   new Promise<T>((resolve, reject) => {
-    socket.timeout(10000).emit(event, payload ?? {}, (err: any, response: any) => {
+    socket.timeout(timeout).emit(event, payload ?? {}, (err: any, response: any) => {
       if (err) {
-        reject(new Error(`Timeout waiting for ${event} response`));
+        reject(new Error(`Timeout waiting for ${event} response (${timeout}ms)`));
       } else if (response?.error) {
         reject(new Error(response.error));
       } else {
@@ -20,7 +25,7 @@ const emitAsync = <T, P = Record<string, unknown>>(socket: Socket, event: string
 export interface RemotePeer {
   id: string;
   displayName?: string;
-  consumers: Map<string, Consumer>;
+  consumers: Map<string, types.Consumer>;
   stream?: MediaStream; // Combined stream for easier handling
 }
 
@@ -38,11 +43,11 @@ export function useMediasoup({ roomId, nickname, signallingUrl, localStream }: U
   const [peers, setPeers] = useState<Map<string, RemotePeer>>(new Map());
 
   const socketRef = useRef<Socket | null>(null);
-  const deviceRef = useRef<Device | null>(null);
-  const sendTransportRef = useRef<Transport | null>(null);
-  const recvTransportRef = useRef<Transport | null>(null);
-  const producersRef = useRef<Map<string, Producer>>(new Map()); // kind -> Producer
-  const consumersRef = useRef<Map<string, Consumer>>(new Map()); // consumerId -> Consumer
+  const deviceRef = useRef<types.Device | null>(null);
+  const sendTransportRef = useRef<types.Transport | null>(null);
+  const recvTransportRef = useRef<types.Transport | null>(null);
+  const producersRef = useRef<Map<string, types.Producer>>(new Map()); // kind -> Producer
+  const consumersRef = useRef<Map<string, types.Consumer>>(new Map()); // consumerId -> Consumer
 
   // Track published tracks to handle stream changes
   const publishedTracksRef = useRef<Set<string>>(new Set());
@@ -98,134 +103,54 @@ export function useMediasoup({ roomId, nickname, signallingUrl, localStream }: U
 
         console.log("Attempting to join room:", roomId);
 
-        // Wrap join logic in a promise that waits for 'joined-room' event
-        await new Promise<void>((resolve, reject) => {
-          const timeout = setTimeout(() => {
-            socket.off("joined-room", onJoined);
-            reject(new Error("Timeout waiting for joined-room event"));
-          }, 10000);
+        // Step 1: Register event handlers FIRST (but we need to define consumeProducer later)
+        let consumeProducerFn: ((producerId: string, peerId: string) => Promise<void>) | null = null;
+        let myPeerIdRef: string | null = null;
 
-          const onJoined = ({ peerId, peers }: any) => {
-            clearTimeout(timeout);
-            socket.off("joined-room", onJoined); // Clean up temp listener
-            console.log("Successfully joined room (event received)", peerId);
-            resolve();
-          };
-
-          socket.on("joined-room", onJoined);
-
-          // Emit join request (no ack expected from server based on current backend code)
-          socket.emit("join-room", { roomId, displayName: nickname });
-        });
-
-        // Get RTP Capabilities & Load Device
-        console.log("Requesting router RTP capabilities...");
-        try {
-          const rtpCaps = await emitAsync<{ rtpCapabilities: any }>(
-            socket,
-            "get-router-rtp-capabilities"
-          );
-          console.log("Received RTP capabilities response:", rtpCaps);
-
-          if (!rtpCaps || !rtpCaps.rtpCapabilities) {
-            throw new Error(
-              "Failed to get RTP capabilities. Server might rely on 'error' event instead of callback."
-            );
+        // Handle new producer from existing peer
+        socket.on("new-producer", async ({ producerId, peerId }) => {
+          console.log(`[new-producer event] Received from peer ${peerId}, producerId: ${producerId}`);
+          // Ignore if we don't know our ID yet OR if this is our own producer
+          if (!myPeerIdRef) {
+            console.log(`  -> Ignoring: don't know own peer ID yet`);
+            return;
+          }
+          if (peerId === myPeerIdRef) {
+            console.log(`  -> Ignoring own producer`);
+            return;
+          }
+          if (!consumeProducerFn) {
+            console.error(`  -> Cannot consume: consumeProducerFn not ready yet`);
+            return;
           }
 
-          const device = new mediasoupClient.Device();
-          await device.load({ routerRtpCapabilities: rtpCaps.rtpCapabilities });
-          deviceRef.current = device;
-          console.log("Device loaded successfully");
-        } catch (e: any) {
-          console.error("Failed to load device:", e);
-          throw new Error(`Device load failed: ${e.message}`);
-        }
+          console.log(`  -> Consuming producer from peer ${peerId}`);
 
-        const device = deviceRef.current;
-        if (!device) throw new Error("Device not loaded");
+          // Retry logic for new producer consumption
+          let retryCount = 0;
+          const maxRetries = 2; // Reduced to 2 attempts
+          let succeeded = false;
 
-        // Create Send Transport
-        console.log("Creating send transport...");
-        const sendData = await emitAsync<any>(socket, "create-webrtc-transport");
-        console.log("Send transport data:", sendData);
-        const sendTransport = device.createSendTransport(sendData);
-        sendTransportRef.current = sendTransport;
-
-        sendTransport.on("connect", ({ dtlsParameters }, callback, errback) => {
-          emitAsync(socket, "connect-transport", { transportId: sendTransport.id, dtlsParameters })
-            .then(() => callback())
-            .catch(errback);
+          while (retryCount < maxRetries && !succeeded) {
+            try {
+              await consumeProducerFn(producerId, peerId);
+              console.log(`  -> ✓ Successfully consumed new producer ${producerId} (attempt ${retryCount + 1})`);
+              succeeded = true;
+            } catch (err: any) {
+              retryCount++;
+              if (retryCount < maxRetries) {
+                console.warn(`  -> ⚠ Failed to consume new producer (attempt ${retryCount}/${maxRetries}), retrying in 1s...`);
+                await new Promise(resolve => setTimeout(resolve, 1000));
+              } else {
+                console.error(`  -> ✗ Failed to consume new producer after ${maxRetries} attempts:`, err.message);
+              }
+            }
+          }
         });
 
-        sendTransport.on("produce", ({ kind, rtpParameters }, callback, errback) => {
-          emitAsync<{ id: string }>(socket, "produce", {
-            transportId: sendTransport.id,
-            kind,
-            rtpParameters,
-          })
-            .then(({ id }) => callback({ id }))
-            .catch(errback);
-        });
-
-        // Create Recv Transport
-        const recvData = await emitAsync<any>(socket, "create-webrtc-transport");
-        const recvTransport = device.createRecvTransport(recvData);
-        recvTransportRef.current = recvTransport;
-
-        recvTransport.on("connect", ({ dtlsParameters }, callback, errback) => {
-          emitAsync(socket, "connect-transport", { transportId: recvTransport.id, dtlsParameters })
-            .then(() => callback())
-            .catch(errback);
-        });
-
-        // Handle New Peers / Consumers
-        const consumeProducer = async (producerId: string, peerId: string) => {
-          const deviceCapabilities = deviceRef.current?.rtpCapabilities;
-          if (!deviceCapabilities) return;
-
-          const { id, kind, rtpParameters } = await emitAsync<any>(socket, "consume", {
-            transportId: recvTransport.id,
-            producerId,
-            rtpCapabilities: deviceCapabilities,
-          });
-
-          const consumer = await recvTransport.consume({
-            id,
-            producerId,
-            kind,
-            rtpParameters,
-          });
-
-          consumersRef.current.set(consumer.id, consumer);
-
-          // Resume
-          await emitAsync(socket, "resume-consumer", { consumerId: consumer.id });
-
-          // Update Peers State
-          setPeers((prev) => {
-            const newPeers = new Map(prev);
-            const peer = newPeers.get(peerId) || {
-              id: peerId,
-              displayName: `User ${peerId.substr(0, 4)}`, // Fallback
-              consumers: new Map(),
-              stream: new MediaStream(),
-            };
-
-            peer.consumers.set(consumer.id, consumer);
-            peer.stream?.addTrack(consumer.track);
-
-            // Keep existing fields like displayName
-            newPeers.set(peerId, peer);
-            return newPeers;
-          });
-        };
-
-        socket.on("new-producer", ({ producerId, peerId }) => {
-          consumeProducer(producerId, peerId).catch(console.error);
-        });
-
+        // Handle peer leaving
         socket.on("peer-left", ({ peerId }) => {
+          console.log(`[peer-left event] Peer ${peerId} left`);
           setPeers((prev) => {
             const newPeers = new Map(prev);
             const peer = newPeers.get(peerId);
@@ -240,9 +165,19 @@ export function useMediasoup({ roomId, nickname, signallingUrl, localStream }: U
           });
         });
 
-        // Handle New Peer Joining (Synchronize Name)
+        // Handle new peer joining (after us)
         socket.on("new-peer", ({ peer }: { peer: any }) => {
-          console.log("New peer joined:", peer);
+          console.log(`[new-peer event] New peer joined:`, peer);
+          // Ignore if we don't know our ID yet OR if this is us
+          if (!myPeerIdRef) {
+            console.log(`  -> Ignoring: don't know own peer ID yet`);
+            return;
+          }
+          if (peer.id === myPeerIdRef) {
+            console.log(`  -> Ignoring own join event`);
+            return;
+          }
+          console.log(`  -> Adding new peer ${peer.id} to peers map`);
           setPeers((prev) => {
             const newPeers = new Map(prev);
             if (!newPeers.has(peer.id)) {
@@ -252,19 +187,202 @@ export function useMediasoup({ roomId, nickname, signallingUrl, localStream }: U
                 consumers: new Map(),
                 stream: new MediaStream(),
               });
+              console.log(`  -> Peer ${peer.id} added, total peers: ${newPeers.size}`);
+            } else {
+              console.log(`  -> Peer ${peer.id} already exists`);
             }
             return newPeers;
           });
         });
 
-        // Handle Joined Room (Initial Peers & Consume Existing Producers)
-        socket.on("joined-room", ({ peers }: { peers: any[] }) => {
-          console.log("Joined room, existing peers:", peers);
+        // Step 2: Emit join-room and wait for response
+        const joinedData = await new Promise<{ peerId: string; peers: any[] }>((resolve, reject) => {
+          const timeout = setTimeout(() => {
+            socket.off("joined-room", onJoined);
+            reject(new Error("Timeout waiting for joined-room event"));
+          }, 10000);
 
-          // 1. Initialize Peer State
+          const onJoined = (data: { peerId: string; peers: any[] }) => {
+            clearTimeout(timeout);
+            socket.off("joined-room", onJoined);
+            console.log(`[joined-room event] Successfully joined. My peerId: ${data.peerId}, Existing peers:`, data.peers);
+            resolve(data);
+          };
+
+          socket.on("joined-room", onJoined);
+          console.log("Emitting join-room...");
+          socket.emit("join-room", { roomId, displayName: nickname });
+        });
+
+        const myPeerId = joinedData.peerId;
+        myPeerIdRef = myPeerId; // Store in ref for event handlers to access
+
+        // Step 3: Now we're in the room, get RTP Capabilities & Load Device
+        console.log("Requesting router RTP capabilities...");
+        const rtpCaps = await emitAsync<{ rtpCapabilities: any }>(
+          socket,
+          "get-router-rtp-capabilities"
+        );
+        console.log("Received RTP capabilities response:", rtpCaps);
+
+        if (!rtpCaps || !rtpCaps.rtpCapabilities) {
+          throw new Error("Failed to get RTP capabilities");
+        }
+
+        const device = new mediasoupClient.Device();
+        await device.load({ routerRtpCapabilities: rtpCaps.rtpCapabilities });
+        deviceRef.current = device;
+        console.log("Device loaded successfully");
+
+        // Step 4: Create Send Transport
+        console.log("Creating send transport...");
+        const sendData = await emitAsync<any>(socket, "create-webrtc-transport");
+        const sendTransport = device.createSendTransport({
+          ...sendData,
+          iceCandidates: sendData.iceCandidates.map((c: any) => ({
+            ...c,
+            address: c.ip,
+          })),
+        } as any);
+        sendTransportRef.current = sendTransport;
+
+        sendTransport.on("connect", ({ dtlsParameters }, callback, errback) => {
+          console.log(`[SendTransport] Connecting transport ${sendTransport.id}...`);
+          emitAsync(socket, "connect-transport", { transportId: sendTransport.id, dtlsParameters })
+            .then(() => {
+              console.log(`[SendTransport] Connected successfully`);
+              callback();
+            })
+            .catch((err) => {
+              console.error(`[SendTransport] Connection failed:`, err);
+              errback(err);
+            });
+        });
+
+        sendTransport.on("produce", ({ kind, rtpParameters }, callback, errback) => {
+          console.log(`[SendTransport] Producing ${kind}...`);
+          emitAsync<{ id: string }>(socket, "produce", {
+            transportId: sendTransport.id,
+            kind,
+            rtpParameters,
+          })
+            .then(({ id }) => {
+              console.log(`[SendTransport] Produced ${kind} with id ${id}`);
+              callback({ id });
+            })
+            .catch((err) => {
+              console.error(`[SendTransport] Produce failed:`, err);
+              errback(err);
+            });
+        });
+
+        // Step 5: Create Recv Transport
+        const recvData = await emitAsync<any>(socket, "create-webrtc-transport");
+        const recvTransport = device.createRecvTransport({
+          ...recvData,
+          iceCandidates: recvData.iceCandidates.map((c: any) => ({
+            ...c,
+            address: c.ip,
+          })),
+        } as any);
+        recvTransportRef.current = recvTransport;
+
+        recvTransport.on("connect", ({ dtlsParameters }, callback, errback) => {
+          console.log(`[RecvTransport] Connecting transport ${recvTransport.id}...`);
+          emitAsync(socket, "connect-transport", { transportId: recvTransport.id, dtlsParameters })
+            .then(() => {
+              console.log(`[RecvTransport] Connected successfully`);
+              callback();
+            })
+            .catch((err) => {
+              console.error(`[RecvTransport] Connection failed:`, err);
+              errback(err);
+            });
+        });
+
+        // Step 6: Define and assign consume function
+        const consumeProducer = async (producerId: string, peerId: string) => {
+          try {
+            console.log(`[consumeProducer] Starting consume for producer ${producerId} from peer ${peerId}`);
+
+            const deviceCapabilities = deviceRef.current?.rtpCapabilities;
+            if (!deviceCapabilities) {
+              console.error(`[consumeProducer] No device capabilities available`);
+              return;
+            }
+
+            console.log(`[consumeProducer] Requesting consume from server...`);
+            const { id, kind, rtpParameters } = await emitAsync<any>(socket, "consume", {
+              transportId: recvTransport.id,
+              producerId,
+              rtpCapabilities: deviceCapabilities,
+            }, 30000); // 30 second timeout for consume
+            console.log(`[consumeProducer] Server responded: consumerId=${id}, kind=${kind}`);
+
+            console.log(`[consumeProducer] Creating consumer on transport...`);
+            const consumer = await recvTransport.consume({
+              id,
+              producerId,
+              kind,
+              rtpParameters,
+            });
+            console.log(`[consumeProducer] Consumer created, track:`, consumer.track);
+
+            consumersRef.current.set(consumer.id, consumer);
+
+            // Resume consumer FIRST (critical for data flow)
+            console.log(`[consumeProducer] Resuming consumer ${consumer.id}...`);
+            try {
+              await emitAsync(socket, "resume-consumer", { consumerId: consumer.id }, 30000); // 30 second timeout
+              console.log(`[consumeProducer] ✓ Consumer resumed successfully`);
+            } catch (resumeError: any) {
+              console.error(`[consumeProducer] ✗ Failed to resume consumer:`, resumeError);
+              // Don't throw - let the consumer try to work anyway
+              console.log(`[consumeProducer] Continuing despite resume failure...`);
+            }
+
+            // Update Peers State AFTER successful resume
+            setPeers((prev) => {
+              const newPeers = new Map(prev);
+              const existingPeer = newPeers.get(peerId);
+
+              // Get existing tracks or create empty array
+              const existingTracks = existingPeer?.stream?.getTracks() || [];
+
+              // Create NEW MediaStream with all tracks (existing + new)
+              const newStream = new MediaStream([...existingTracks, consumer.track]);
+
+              const peer = {
+                id: peerId,
+                displayName: existingPeer?.displayName || `User ${peerId.slice(0, 4)}`,
+                consumers: existingPeer?.consumers || new Map(),
+                stream: newStream,  // New stream object triggers React re-render
+              };
+
+              peer.consumers.set(consumer.id, consumer);
+
+              console.log(`[consumeProducer] ✓ Added ${kind} track to peer ${peerId}, stream now has ${newStream.getTracks().length} tracks:`, newStream.getTracks().map(t => `${t.kind}(enabled:${t.enabled},muted:${t.muted})`));
+
+              newPeers.set(peerId, peer);
+              return newPeers;
+            });
+
+            console.log(`[consumeProducer] ✓✓✓ Successfully consumed and resumed ${kind} from peer ${peerId}`);
+          } catch (error) {
+            console.error(`[consumeProducer] ERROR consuming producer ${producerId} from peer ${peerId}:`, error);
+          }
+        };
+
+        // Assign to the variable used by event handlers
+        consumeProducerFn = consumeProducer;
+
+        // Step 7: Process existing peers from joined-room response
+        console.log(`[Setup] Processing ${joinedData.peers?.length || 0} existing peers...`);
+        if (joinedData.peers && joinedData.peers.length > 0) {
           setPeers((prev) => {
             const newPeers = new Map(prev);
-            peers.forEach((p: any) => {
+            joinedData.peers.forEach((p: any) => {
+              console.log(`  - Adding existing peer ${p.id} (${p.displayName}), producers:`, p.producerIds);
               if (!newPeers.has(p.id)) {
                 newPeers.set(p.id, {
                   id: p.id,
@@ -277,16 +395,36 @@ export function useMediasoup({ roomId, nickname, signallingUrl, localStream }: U
             return newPeers;
           });
 
-          // 2. Consume All Existing Producers
-          peers.forEach((p: any) => {
+          // Consume all existing producers sequentially with retry
+          for (const p of joinedData.peers) {
             if (p.producerIds && Array.isArray(p.producerIds)) {
-              p.producerIds.forEach((pid: string) => {
-                consumeProducer(pid, p.id).catch(console.error);
-              });
-            }
-          });
-        });
+              for (const pid of p.producerIds) {
+                console.log(`  - Consuming existing producer ${pid} from peer ${p.id}`);
+                let retryCount = 0;
+                const maxRetries = 2; // Reduced to 2 attempts
+                let succeeded = false;
 
+                while (retryCount < maxRetries && !succeeded) {
+                  try {
+                    await consumeProducer(pid, p.id);
+                    console.log(`  - ✓ Successfully consumed producer ${pid} (attempt ${retryCount + 1})`);
+                    succeeded = true;
+                  } catch (err: any) {
+                    retryCount++;
+                    if (retryCount < maxRetries) {
+                      console.warn(`  - ⚠ Failed to consume producer ${pid} (attempt ${retryCount}/${maxRetries}), retrying in 1s...`);
+                      await new Promise(resolve => setTimeout(resolve, 1000));
+                    } else {
+                      console.error(`  - ✗ Failed to consume producer ${pid} after ${maxRetries} attempts:`, err.message);
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+
+        console.log(`[Setup] ✓✓✓ Mediasoup setup complete, setting status to connected`);
         setStatus("connected");
       } catch (err: any) {
         if (!mounted) return;
@@ -302,19 +440,35 @@ export function useMediasoup({ roomId, nickname, signallingUrl, localStream }: U
       mounted = false;
       cleanup();
     };
-  }, [roomId, nickname, signallingUrl, cleanup]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [roomId, nickname, signallingUrl]);
 
   // 2. Publish Local Stream
   useEffect(() => {
     const publish = async () => {
-      if (status !== "connected" || !sendTransportRef.current || !localStream) return;
+      console.log("[useMediasoup] Checking publish conditions:", {
+        status,
+        hasSendTransport: !!sendTransportRef.current,
+        hasLocalStream: !!localStream,
+        tracks: localStream?.getTracks().map((t) => t.kind),
+      });
 
+      if (status !== "connected" || !sendTransportRef.current || !localStream) {
+        console.log("[useMediasoup] Skipping publish (conditions not met)");
+        return;
+      }
+
+      console.log("[useMediasoup] Starting to publish tracks...");
       const tracks = localStream.getTracks();
 
       for (const track of tracks) {
-        if (publishedTracksRef.current.has(track.id)) continue;
+        if (publishedTracksRef.current.has(track.id)) {
+          console.log(`[useMediasoup] Track ${track.id} (${track.kind}) already published`);
+          continue;
+        }
 
         try {
+          console.log(`[useMediasoup] Producing ${track.kind} track...`);
           const producer = await sendTransportRef.current.produce({
             track,
             // Add simple encodings for video
@@ -325,17 +479,20 @@ export function useMediasoup({ roomId, nickname, signallingUrl, localStream }: U
               : {}),
           });
 
+          console.log(`[useMediasoup] Successfully produced ${track.kind} (id: ${producer.id})`);
+
           producersRef.current.set(track.kind, producer);
           publishedTracksRef.current.add(track.id);
 
           producer.on("trackended", () => {
+            console.log(`[useMediasoup] Track ended: ${track.kind}`);
             // Handle track ended (e.g. device unplugged)
           });
 
           // If the local track is stopped, we should close producer, but 'trackended' might fire.
           // In React, if localStream changes, this effect runs again.
         } catch (e) {
-          console.error("Publish error", e);
+          console.error(`[useMediasoup] Publish error for ${track.kind}:`, e);
         }
       }
     };
@@ -343,5 +500,5 @@ export function useMediasoup({ roomId, nickname, signallingUrl, localStream }: U
     publish();
   }, [status, localStream]);
 
-  return { status, error, peers };
+  return { status, error, peers, socket: socketRef.current };
 }
