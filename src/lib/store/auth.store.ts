@@ -1,7 +1,7 @@
 import axios from "axios";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import { api, errorHandler } from "@/lib/utils";
+import { api, generateMockUser } from "@/lib/utils";
 import { login as loginApi, register as registerApi } from "@/lib/api/api.auth";
 
 interface User {
@@ -53,19 +53,13 @@ const mapUser = (user: { id: string; username: string; name: string }): User => 
 });
 
 const extractMessage = (error: unknown, fallback: string) => {
-  errorHandler(error);
+  if (axios.isAxiosError(error)) {
+    return (error.response?.data as any)?.message || fallback;
+  }
+  if (error instanceof Error) {
+    return error.message;
+  }
   return fallback;
-};
-
-const generateMockUser = () => {
-  const suffix = Math.random().toString(36).substring(2, 9);
-  return {
-    id: `mock-id-${suffix}`,
-    username: `mock-${suffix}@test.com`,
-    name: "Mock User",
-    nickname: "MockNick",
-    email: `mock-${suffix}@test.com`,
-  };
 };
 
 export const useAuthStore = create<AuthState>()(

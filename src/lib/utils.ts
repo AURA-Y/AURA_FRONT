@@ -99,6 +99,17 @@ export const errorHandler = (error: unknown) => {
   toast.error("알 수 없는 오류가 발생했습니다.");
 };
 
+export const generateMockUser = () => {
+  const suffix = Math.random().toString(36).substring(2, 9);
+  return {
+    id: `mock-id-${suffix}`,
+    username: `mock-${suffix}@test.com`,
+    name: `Mock User-${suffix}`,
+    nickname: `MockNick-${suffix}`,
+    email: `mock-${suffix}@test.com`,
+  };
+};
+
 export const formatDate = (value: string) =>
   new Intl.DateTimeFormat("ko-KR", { dateStyle: "medium", timeStyle: "short" }).format(
     new Date(value)

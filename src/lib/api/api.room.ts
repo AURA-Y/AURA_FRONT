@@ -1,8 +1,4 @@
-import axios from "axios";
-
-export const api = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL,
-});
+import { api } from "../utils";
 
 import {
   AttendRoomRequest,
@@ -20,8 +16,9 @@ const createRoom = async (params: CreateRoomRequest): Promise<CreateRoomResponse
 };
 
 // 기존 방 입장을 위한 LiveKit JWT 토큰 발급 api - POST /api/token
+//
 const attendRoom = async (params: AttendRoomRequest): Promise<AttendRoomResponse> => {
-  const { data } = await api.post<AttendRoomResponse>("/api/token", params);
+  const { data } = await api.post<AttendRoomResponse>("/api/room/join", params);
   return data;
 };
 
