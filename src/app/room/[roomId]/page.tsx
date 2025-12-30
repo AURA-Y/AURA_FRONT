@@ -118,6 +118,69 @@ export default function RoomPage() {
     }
   }, [isAnyMenuOpen]);
 
+  // Auto-refresh on connection issues (improved version)
+  useEffect(() => {
+    if (status !== "connected") return;
+
+    // Check if this is a fresh load or a refresh
+    const REFRESH_KEY = `room-refresh-${roomId}`;
+    const lastRefresh = localStorage.getItem(REFRESH_KEY);
+    const now = Date.now();
+
+    // If we refreshed less than 30 seconds ago, don't refresh again (prevent infinite loop)
+    if (lastRefresh && now - parseInt(lastRefresh) < 30000) {
+      console.log("[Auto-refresh] Recently refreshed, skipping auto-refresh check");
+      return;
+    }
+
+    // Wait 15 seconds after connection to check peer status
+    const checkTimer = setTimeout(() => {
+      // Count peers with actual media (at least one track)
+      let peersWithMedia = 0;
+      peers.forEach((peer) => {
+        const trackCount = peer.stream?.getTracks().length || 0;
+        if (trackCount > 0) {
+          peersWithMedia++;
+        }
+      });
+
+      console.log("[Auto-refresh] Checking connection health...", {
+        status,
+        totalPeers: peers.size,
+        peersWithMedia,
+        hasSocket: !!socket,
+      });
+
+      // Trigger refresh if:
+      // 1. We're connected but have no peers with actual media
+      // 2. This indicates a connection problem (bot doesn't count)
+      const shouldRefresh = status === "connected" && peersWithMedia === 0;
+
+      if (shouldRefresh) {
+        console.log("[Auto-refresh] Connection issue detected (no peers with media), will refresh in 3 seconds...");
+
+        // Show toast notification
+        toast.warning("연결 문제 감지", {
+          description: "참가자가 보이지 않습니다. 3초 후 자동으로 새로고침됩니다...",
+          duration: 3000,
+        });
+
+        // Wait 3 seconds, then refresh
+        setTimeout(() => {
+          console.log("[Auto-refresh] Refreshing page...");
+          localStorage.setItem(REFRESH_KEY, now.toString());
+          window.location.reload();
+        }, 3000);
+      } else {
+        console.log(`[Auto-refresh] ✓ Connection looks healthy (${peersWithMedia} peers with media)`);
+      }
+    }, 15000); // Check after 15 seconds
+
+    return () => {
+      clearTimeout(checkTimer);
+    };
+  }, [status, peers, roomId, socket]);
+
   const handleScreenShareClick = () => {
     if (isScreenSharing) {
       // Stop Screen Share (Revert to Camera)

@@ -128,20 +128,21 @@ export function useMediasoup({ roomId, nickname, signallingUrl, localStream }: U
 
           // Retry logic for new producer consumption
           let retryCount = 0;
-          const maxRetries = 3;
+          const maxRetries = 2; // Reduced to 2 attempts
+          let succeeded = false;
 
-          while (retryCount < maxRetries) {
+          while (retryCount < maxRetries && !succeeded) {
             try {
               await consumeProducerFn(producerId, peerId);
               console.log(`  -> ✓ Successfully consumed new producer ${producerId} (attempt ${retryCount + 1})`);
-              break;
-            } catch (err) {
+              succeeded = true;
+            } catch (err: any) {
               retryCount++;
               if (retryCount < maxRetries) {
-                console.warn(`  -> ⚠ Failed to consume new producer (attempt ${retryCount}/${maxRetries}), retrying in ${retryCount}s...`);
-                await new Promise(resolve => setTimeout(resolve, 1000 * retryCount));
+                console.warn(`  -> ⚠ Failed to consume new producer (attempt ${retryCount}/${maxRetries}), retrying in 1s...`);
+                await new Promise(resolve => setTimeout(resolve, 1000));
               } else {
-                console.error(`  -> ✗ Failed to consume new producer after ${maxRetries} attempts:`, err);
+                console.error(`  -> ✗ Failed to consume new producer after ${maxRetries} attempts:`, err.message);
               }
             }
           }
@@ -400,20 +401,21 @@ export function useMediasoup({ roomId, nickname, signallingUrl, localStream }: U
               for (const pid of p.producerIds) {
                 console.log(`  - Consuming existing producer ${pid} from peer ${p.id}`);
                 let retryCount = 0;
-                const maxRetries = 3;
+                const maxRetries = 2; // Reduced to 2 attempts
+                let succeeded = false;
 
-                while (retryCount < maxRetries) {
+                while (retryCount < maxRetries && !succeeded) {
                   try {
                     await consumeProducer(pid, p.id);
                     console.log(`  - ✓ Successfully consumed producer ${pid} (attempt ${retryCount + 1})`);
-                    break; // Success, exit retry loop
-                  } catch (err) {
+                    succeeded = true;
+                  } catch (err: any) {
                     retryCount++;
                     if (retryCount < maxRetries) {
-                      console.warn(`  - ⚠ Failed to consume producer ${pid} (attempt ${retryCount}/${maxRetries}), retrying...`);
-                      await new Promise(resolve => setTimeout(resolve, 1000 * retryCount)); // Exponential backoff
+                      console.warn(`  - ⚠ Failed to consume producer ${pid} (attempt ${retryCount}/${maxRetries}), retrying in 1s...`);
+                      await new Promise(resolve => setTimeout(resolve, 1000));
                     } else {
-                      console.error(`  - ✗ Failed to consume producer ${pid} after ${maxRetries} attempts:`, err);
+                      console.error(`  - ✗ Failed to consume producer ${pid} after ${maxRetries} attempts:`, err.message);
                     }
                   }
                 }
