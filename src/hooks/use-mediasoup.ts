@@ -8,7 +8,7 @@ const emitAsync = <T, P = Record<string, unknown>>(
   socket: Socket,
   event: string,
   payload?: P,
-  timeout: number = 10000
+  timeout: number = 30000 // Increased default timeout to 30 seconds
 ) =>
   new Promise<T>((resolve, reject) => {
     socket.timeout(timeout).emit(event, payload ?? {}, (err: any, response: any) => {
@@ -108,7 +108,7 @@ export function useMediasoup({ roomId, nickname, signallingUrl, localStream }: U
         let myPeerIdRef: string | null = null;
 
         // Handle new producer from existing peer
-        socket.on("new-producer", ({ producerId, peerId }) => {
+        socket.on("new-producer", async ({ producerId, peerId }) => {
           console.log(`[new-producer event] Received from peer ${peerId}, producerId: ${producerId}`);
           // Ignore if we don't know our ID yet OR if this is our own producer
           if (!myPeerIdRef) {
@@ -123,10 +123,28 @@ export function useMediasoup({ roomId, nickname, signallingUrl, localStream }: U
             console.error(`  -> Cannot consume: consumeProducerFn not ready yet`);
             return;
           }
+
           console.log(`  -> Consuming producer from peer ${peerId}`);
-          consumeProducerFn(producerId, peerId).catch((err) => {
-            console.error(`  -> Failed to consume producer:`, err);
-          });
+
+          // Retry logic for new producer consumption
+          let retryCount = 0;
+          const maxRetries = 3;
+
+          while (retryCount < maxRetries) {
+            try {
+              await consumeProducerFn(producerId, peerId);
+              console.log(`  -> ✓ Successfully consumed new producer ${producerId} (attempt ${retryCount + 1})`);
+              break;
+            } catch (err) {
+              retryCount++;
+              if (retryCount < maxRetries) {
+                console.warn(`  -> ⚠ Failed to consume new producer (attempt ${retryCount}/${maxRetries}), retrying in ${retryCount}s...`);
+                await new Promise(resolve => setTimeout(resolve, 1000 * retryCount));
+              } else {
+                console.error(`  -> ✗ Failed to consume new producer after ${maxRetries} attempts:`, err);
+              }
+            }
+          }
         });
 
         // Handle peer leaving
@@ -297,7 +315,7 @@ export function useMediasoup({ roomId, nickname, signallingUrl, localStream }: U
               transportId: recvTransport.id,
               producerId,
               rtpCapabilities: deviceCapabilities,
-            });
+            }, 30000); // 30 second timeout for consume
             console.log(`[consumeProducer] Server responded: consumerId=${id}, kind=${kind}`);
 
             console.log(`[consumeProducer] Creating consumer on transport...`);
@@ -314,11 +332,12 @@ export function useMediasoup({ roomId, nickname, signallingUrl, localStream }: U
             // Resume consumer FIRST (critical for data flow)
             console.log(`[consumeProducer] Resuming consumer ${consumer.id}...`);
             try {
-              await emitAsync(socket, "resume-consumer", { consumerId: consumer.id }, 15000);
+              await emitAsync(socket, "resume-consumer", { consumerId: consumer.id }, 30000); // 30 second timeout
               console.log(`[consumeProducer] ✓ Consumer resumed successfully`);
             } catch (resumeError: any) {
               console.error(`[consumeProducer] ✗ Failed to resume consumer:`, resumeError);
-              throw new Error(`Resume failed: ${resumeError.message}`);
+              // Don't throw - let the consumer try to work anyway
+              console.log(`[consumeProducer] Continuing despite resume failure...`);
             }
 
             // Update Peers State AFTER successful resume
@@ -375,17 +394,28 @@ export function useMediasoup({ roomId, nickname, signallingUrl, localStream }: U
             return newPeers;
           });
 
-          // Consume all existing producers sequentially
+          // Consume all existing producers sequentially with retry
           for (const p of joinedData.peers) {
             if (p.producerIds && Array.isArray(p.producerIds)) {
               for (const pid of p.producerIds) {
                 console.log(`  - Consuming existing producer ${pid} from peer ${p.id}`);
-                try {
-                  await consumeProducer(pid, p.id);
-                  console.log(`  - ✓ Successfully consumed producer ${pid}`);
-                } catch (err) {
-                  console.error(`  - ✗ Failed to consume producer ${pid}:`, err);
-                  // Continue with other producers even if one fails
+                let retryCount = 0;
+                const maxRetries = 3;
+
+                while (retryCount < maxRetries) {
+                  try {
+                    await consumeProducer(pid, p.id);
+                    console.log(`  - ✓ Successfully consumed producer ${pid} (attempt ${retryCount + 1})`);
+                    break; // Success, exit retry loop
+                  } catch (err) {
+                    retryCount++;
+                    if (retryCount < maxRetries) {
+                      console.warn(`  - ⚠ Failed to consume producer ${pid} (attempt ${retryCount}/${maxRetries}), retrying...`);
+                      await new Promise(resolve => setTimeout(resolve, 1000 * retryCount)); // Exponential backoff
+                    } else {
+                      console.error(`  - ✗ Failed to consume producer ${pid} after ${maxRetries} attempts:`, err);
+                    }
+                  }
                 }
               }
             }
