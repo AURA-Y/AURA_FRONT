@@ -22,7 +22,7 @@ interface AuthState {
   setHydrated: () => void;
 }
 
-const AUTH_STORAGE_KEY = "auth-storage";
+const AUTH_STORAGE_KEY = "auth-storage-mock";
 
 const setAuthHeader = (token?: string | null) => {
   if (token) {
@@ -65,8 +65,14 @@ const extractMessage = (error: unknown, fallback: string) => {
 export const useAuthStore = create<AuthState>()(
   persist(
     (set, get) => ({
-      user: null,
-      accessToken: null,
+      user: {
+        id: "mock-id",
+        username: "mock@test.com",
+        name: "Mock User",
+        nickname: "MockNick",
+        email: "mock@test.com",
+      },
+      accessToken: "mock-token",
 
       login: async (email, password) => {
         try {

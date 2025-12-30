@@ -19,7 +19,7 @@ export const env = createEnv({
     // API 서버
     NEXT_PUBLIC_API_URL: z.string().url(),
     // LiveKit REST/WS 엔드포인트
-    NEXT_PUBLIC_LIVEKIT_API_URL: z.string().url(),
+    NEXT_PUBLIC_LIVEKIT_URL: z.string().url(),
   },
 
   /**
@@ -28,7 +28,7 @@ export const env = createEnv({
    */
   runtimeEnv: {
     NODE_ENV: process.env.NODE_ENV,
-    NEXT_PUBLIC_LIVEKIT_API_URL: process.env.NEXT_PUBLIC_LIVEKIT_API_URL,
+    NEXT_PUBLIC_LIVEKIT_URL: process.env.NEXT_PUBLIC_LIVEKIT_URL,
     NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL,
   },
 

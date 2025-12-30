@@ -29,6 +29,5 @@ const createRoomSchema = z.object({
 type JoinRoomFormValues = z.infer<typeof joinRoomSchema>;
 type CreateRoomFormValues = z.infer<typeof createRoomSchema>;
 
-export { joinRoomSchema, createRoomSchema };
-
-export type { JoinRoomFormValues, CreateRoomFormValues };
+export { joinRoomSchema, createRoomSchema, joinRoomSchema as lobbySchema };
+export type { JoinRoomFormValues, CreateRoomFormValues, JoinRoomFormValues as LobbyFormValues };
