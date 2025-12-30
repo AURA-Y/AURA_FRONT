@@ -7,7 +7,6 @@ export const env = createEnv({
    * 서버에서만 사용 가능하며 클라이언트(브라우저)에는 노출되지 않습니다.
    */
   server: {
-    NODE_ENV: z.enum(["development", "test", "production"]),
     // 예: LIVEKIT_API_SECRET: z.string().min(1),
   },
 
