@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import { api, generateMockUser } from "@/lib/utils";
+import { api } from "@/lib/utils";
 import * as authApi from "@/lib/api/api.auth";
 
 interface User {
@@ -94,12 +94,8 @@ export const useAuthStore = create<AuthState>()(
       name: AUTH_STORAGE_KEY,
       partialize: (state) => ({ user: state.user, accessToken: state.accessToken }),
       onRehydrateStorage: () => (state) => {
-        // localStorage에 저장된 유저가 없으면 랜덤 Mock 유저 생성 (클라이언트에서만)
-        if (state && !state.user && !state.accessToken) {
-          const mockUser = generateMockUser();
-          state.user = mockUser;
-          state.accessToken = "mock-token";
-        } else if (state?.accessToken) {
+        // localStorage에서 토큰 복원 시 Authorization 헤더 설정
+        if (state?.accessToken) {
           setAuthHeader(state.accessToken);
         }
         state?.setHydrated();
