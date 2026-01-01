@@ -1,5 +1,5 @@
 import { api } from "../utils";
-import { ReportMetadata } from "@/mock/board/types";
+import { ReportMetadata } from "@/lib/types/reports.type";
 
 export const getReportById = async (reportId: string) => {
   return api.get<ReportMetadata>(`/reports/${reportId}`);
@@ -7,10 +7,10 @@ export const getReportById = async (reportId: string) => {
 
 export const getReportsByIds = async (reportIds: string[]) => {
   if (!reportIds || reportIds.length === 0) return { data: [] };
-  const idsParam = reportIds.join(',');
+  const idsParam = reportIds.join(",");
   return api.get<ReportMetadata[]>(`/reports/batch/by-ids?ids=${idsParam}`);
 };
 
 export const getAllReports = async () => {
-  return api.get<ReportMetadata[]>('/reports');
+  return api.get<ReportMetadata[]>("/reports");
 };

@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { PAST_MEETINGS, PastMeeting } from "@/mock/board/modkData";
 import { useAuthStore } from "@/lib/store/auth.store";
 import { getReportsByIds } from "@/lib/api/api.reports";
-import { ReportMetadata, ReportDetails } from "@/mock/board/types";
+import { ReportMetadata, ReportDetails } from "@/lib/types/reports.type";
 import { fetchReportDetailsFromS3 } from "@/lib/api/api.s3-reports";
 import ItemHeader from "@/components/board/ItemHeader";
 import ItemOpen from "@/components/board/ItemOpen";
@@ -50,7 +50,7 @@ export default function PastMeetingsBoardPage() {
 
   const handleSelect = async (meeting: PastMeeting | ReportMetadata) => {
     // PastMeeting인 경우 바로 선택
-    if ('title' in meeting) {
+    if ("title" in meeting) {
       setSelected(meeting);
       return;
     }
@@ -90,8 +90,7 @@ export default function PastMeetingsBoardPage() {
         <div className="flex flex-col gap-1">
           <h1 className="text-2xl font-bold">지난 회의록</h1>
           <p className="text-sm text-slate-500">
-            목록에서 회의를 선택하면 전체 회의록을 볼 수 있습니다.
-            ({allMeetings.length}개 회의)
+            목록에서 회의를 선택하면 전체 회의록을 볼 수 있습니다. ({allMeetings.length}개 회의)
           </p>
         </div>
 

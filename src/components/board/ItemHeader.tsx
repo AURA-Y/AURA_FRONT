@@ -1,6 +1,6 @@
 import { formatDate } from "@/lib/utils";
 import { PastMeeting } from "@/mock/board/modkData";
-import { ReportMetadata } from "@/mock/board/types";
+import { ReportMetadata } from "@/lib/types/reports.type";
 import { CalendarDays, ChevronRight } from "lucide-react";
 
 interface ItemHeaderProps {
@@ -21,13 +21,13 @@ const ItemHeader = ({ selected, onSelect, meetings }: ItemHeaderProps) => {
           <div className="space-y-3">
             {meetings.map((meeting) => {
               // PastMeeting과 ReportMetadata 구분
-              const isPastMeeting = 'title' in meeting;
+              const isPastMeeting = "title" in meeting;
               const displayTitle = isPastMeeting ? meeting.title : meeting.topic;
               const displayDate = isPastMeeting ? meeting.date : meeting.createdAt;
               const displayId = isPastMeeting ? meeting.id : meeting.reportId;
               const displaySummary = isPastMeeting
                 ? meeting.summary
-                : `참석자: ${meeting.attendees.join(', ')}`;
+                : `참석자: ${meeting.attendees.join(", ")}`;
 
               return (
                 <button

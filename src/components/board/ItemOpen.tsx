@@ -1,6 +1,6 @@
 import { formatDate } from "@/lib/utils";
 import { PastMeeting } from "@/mock/board/modkData";
-import { ReportDetails } from "@/mock/board/types";
+import { ReportDetails } from "@/lib/types/reports.type";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, CalendarDays, Paperclip, FileText } from "lucide-react";
@@ -18,7 +18,7 @@ const ItemOpen = ({ selected, onClose }: ItemOpenProps) => {
   if (!selected) return null;
 
   // PastMeeting과 ReportDetails 구분
-  const isPastMeeting = 'title' in selected;
+  const isPastMeeting = "title" in selected;
   const displayTitle = isPastMeeting ? selected.title : selected.topic;
   const displayDate = isPastMeeting ? selected.date : selected.createdAt;
   const displaySummary = selected.summary;
@@ -42,12 +42,12 @@ const ItemOpen = ({ selected, onClose }: ItemOpenProps) => {
       });
 
       if (!response.ok) {
-        throw new Error('다운로드 실패');
+        throw new Error("다운로드 실패");
       }
 
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
+      const a = document.createElement("a");
       a.href = url;
       a.download = fileName;
       document.body.appendChild(a);
@@ -55,8 +55,8 @@ const ItemOpen = ({ selected, onClose }: ItemOpenProps) => {
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
     } catch (error) {
-      console.error('파일 다운로드 실패:', error);
-      alert('파일 다운로드에 실패했습니다.');
+      console.error("파일 다운로드 실패:", error);
+      alert("파일 다운로드에 실패했습니다.");
     }
   };
 
@@ -107,7 +107,7 @@ const ItemOpen = ({ selected, onClose }: ItemOpenProps) => {
                 <section className="space-y-2">
                   <h3 className="text-sm font-semibold text-slate-900">참석자</h3>
                   <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm leading-relaxed text-slate-800">
-                    {(selected as ReportDetails).attendees.join(', ')}
+                    {(selected as ReportDetails).attendees.join(", ")}
                   </div>
                 </section>
               )}
