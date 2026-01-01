@@ -9,7 +9,7 @@ import {
   useLayoutContext,
   useRoomContext,
 } from "@livekit/components-react";
-import { VideoPresets, RoomOptions, RoomEvent } from "livekit-client";
+import { VideoPresets, RoomOptions, RoomEvent, Track } from "livekit-client";
 import { VideoGrid } from "./VideoGrid";
 import { useEffect, useRef } from "react";
 import * as blazeface from "@tensorflow-models/blazeface";
