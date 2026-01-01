@@ -295,8 +295,8 @@ const AutoMuteOnSilence = () => {
       smoothed = 0.5 * level + 0.5 * smoothed;
       const isSpeaking = lkSpeaking || smoothed > dynamicThreshold || peak > dynamicThreshold * 3;
       const mutedLevel = Math.max(level, smoothed, peak);
-      // 음소거 시 노이즈로 인한 오검출을 방지: 최소 0.05 이상 + 동적 임계치 2배
-      const mutedSpeakingGate = Math.max(dynamicThreshold * 2, 0.05);
+      // 음소거 시 노이즈로 인한 오검출을 방지: 최소 0.02 이상 + 동적 임계치 1.5배 (너무 높지 않게)
+      const mutedSpeakingGate = Math.max(dynamicThreshold * 1.5, 0.02);
       const speakingWhileMutedDetected = !micEnabled && mutedLevel > mutedSpeakingGate;
 
       debugSnapshotRef.current = {
