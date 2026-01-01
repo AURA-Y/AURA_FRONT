@@ -10,9 +10,9 @@ import { Mail, Lock, User, CheckCircle2, XCircle, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useState, useEffect } from "react";
 
-// Debounce 커스텀 훅
-function useDebounce<T>(value: T, delay: number): T {
-  const [debouncedValue, setDebouncedValue] = useState<T>(value);
+// Debounce 커스텀 훅 (닉네임 전용)
+function useDebounce(value: string, delay: number): string {
+  const [debouncedValue, setDebouncedValue] = useState<string>(value);
 
   useEffect(() => {
     const timer = setTimeout(() => {
