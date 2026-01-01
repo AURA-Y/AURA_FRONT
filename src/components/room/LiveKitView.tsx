@@ -81,6 +81,7 @@ const AutoMuteOnSilence = () => {
   const faceModelRef = useRef<blazeface.BlazeFaceModel | null>(null);
   const faceModelLoadingRef = useRef<Promise<blazeface.BlazeFaceModel | null> | null>(null);
   const faceDetectionInFlightRef = useRef<Promise<void> | null>(null);
+  const analysisTrackRef = useRef<MediaStreamTrack | null>(null);
   const mutedSpeakingToastId = "mic-muted-speaking";
 
   const resolveActiveMicDeviceId = () => {
@@ -157,6 +158,12 @@ const AutoMuteOnSilence = () => {
     meterCtxRef.current = null;
     meterDataRef.current = null;
   };
+  const stopAnalysisTrack = () => {
+    if (analysisTrackRef.current) {
+      analysisTrackRef.current.stop();
+    }
+    analysisTrackRef.current = null;
+  };
   const debugSnapshotRef = useRef({
     level: 0,
     peak: 0,
@@ -174,6 +181,7 @@ const AutoMuteOnSilence = () => {
     timerRef.current = undefined;
     analyserRef.current = null;
     trackRef.current = null;
+    stopAnalysisTrack();
     silenceStartRef.current = null;
     prevMicEnabledRef.current = null;
     noiseFloorRef.current = 0.002;
@@ -203,7 +211,13 @@ const AutoMuteOnSilence = () => {
     ctx.resume().catch(() => {});
     audioCtxRef.current = ctx;
 
-    const source = ctx.createMediaStreamSource(stream);
+    // clone을 사용해 원본 트랙이 음소거되어도 오디오 신호를 확보 (추가 getUserMedia 없이)
+    stopAnalysisTrack();
+    const analysisTrack = mediaTrack.clone();
+    analysisTrack.enabled = true;
+    analysisTrackRef.current = analysisTrack;
+
+    const source = ctx.createMediaStreamSource(new MediaStream([analysisTrack]));
     const analyser = ctx.createAnalyser();
     analyser.fftSize = 256; // 가볍게
     source.connect(analyser);
