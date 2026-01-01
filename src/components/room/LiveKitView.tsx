@@ -14,6 +14,13 @@ import { VideoPresets, RoomOptions, RoomEvent, Track } from "livekit-client";
 import { VideoGrid } from "./VideoGrid";
 import { useEffect, useRef } from "react";
 import { toast } from "sonner";
+import {
+  computeLevel,
+  createAnalyserFromTrack,
+  detectCloseFace,
+  loadFaceDetector,
+  updateNoiseFloor,
+} from "@/lib/utils/automute.utils";
 
 // 부하 완화: 720p / 24fps, 단일 계층
 const roomOptions: RoomOptions = {
@@ -81,6 +88,7 @@ const AutoMuteOnSilence = () => {
   const faceDetectorLoadingRef = useRef<Promise<any | null> | null>(null);
   const faceDetectionInFlightRef = useRef<Promise<void> | null>(null);
   const analysisTrackRef = useRef<MediaStreamTrack | null>(null);
+  const faceDetectionFailCountRef = useRef(0);
   const mutedSpeakingToastId = "mic-muted-speaking";
 
   const resolveActiveMicDeviceId = () => {
@@ -96,65 +104,6 @@ const AutoMuteOnSilence = () => {
     const cameraPub = room?.localParticipant.getTrackPublication(Track.Source.Camera);
     const mediaTrack = cameraPub?.track?.mediaStreamTrack as MediaStreamTrack | undefined;
     return mediaTrack ?? null;
-  };
-
-  const loadFaceDetector = async () => {
-    if (faceDetectorRef.current) return faceDetectorRef.current;
-    if (faceDetectorLoadingRef.current) return faceDetectorLoadingRef.current;
-    const p = import("@mediapipe/tasks-vision")
-      .then(async (vision) => {
-        const filesetResolver = await vision.FilesetResolver.forVisionTasks(
-          "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm",
-        );
-        const detector = await vision.FaceDetector.createFromOptions(filesetResolver, {
-          baseOptions: {
-            modelAssetPath:
-              "https://storage.googleapis.com/mediapipe-models/face_detector/short_range/float16/1/face_detector_short_range.tflite",
-          },
-          runningMode: "IMAGE",
-        });
-        return detector;
-      })
-      .then((detector) => {
-        faceDetectorRef.current = detector;
-        faceDetectorLoadingRef.current = null;
-        return detector;
-      })
-      .catch(() => {
-        faceDetectorLoadingRef.current = null;
-        return null;
-      });
-    faceDetectorLoadingRef.current = p;
-    return p;
-  };
-
-  const detectCloseFace = async (): Promise<boolean | null> => {
-    const videoTrack = getLocalCameraTrack();
-    if (!videoTrack) return null;
-    const detector = await loadFaceDetector();
-    if (!detector) return null;
-    const ImageCaptureCtor = (window as any).ImageCapture;
-    if (!ImageCaptureCtor) return null;
-    try {
-      const capture = new ImageCaptureCtor(videoTrack);
-      const bitmap: ImageBitmap = await capture.grabFrame();
-      const result = detector.detect(bitmap);
-      const detections = result?.detections ?? [];
-      const { width, height } = bitmap;
-      if (typeof bitmap.close === "function") bitmap.close();
-      if (!detections || detections.length === 0) return false;
-      const maxAreaRatio = Math.max(
-        ...detections.map((d: any) => {
-          const box = d.boundingBox;
-          const area = Math.max(0, box?.width ?? 0) * Math.max(0, box?.height ?? 0);
-          return width && height ? area / (width * height) : 0;
-        }),
-      );
-      const MIN_CLOSE_FACE_AREA_RATIO = 0.03; // face bbox covers >=3% of frame => considered close
-      return maxAreaRatio >= MIN_CLOSE_FACE_AREA_RATIO;
-    } catch {
-      return null;
-    }
   };
 
   const stopMeter = () => {
@@ -216,25 +165,12 @@ const AutoMuteOnSilence = () => {
     }
     prevMicEnabledRef.current = null;
 
-    const stream = new MediaStream([mediaTrack]);
-    const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
-    const ctx = new AudioContextClass();
+    stopAnalysisTrack();
+    const { analyser, ctx, analysisTrack, dataArray } = createAnalyserFromTrack(mediaTrack);
     ctx.resume().catch(() => {});
     audioCtxRef.current = ctx;
-
-    // clone을 사용해 원본 트랙이 음소거되어도 오디오 신호를 확보 (추가 getUserMedia 없이)
-    stopAnalysisTrack();
-    const analysisTrack = mediaTrack.clone();
-    analysisTrack.enabled = true;
     analysisTrackRef.current = analysisTrack;
-
-    const source = ctx.createMediaStreamSource(new MediaStream([analysisTrack]));
-    const analyser = ctx.createAnalyser();
-    analyser.fftSize = 256; // 가볍게
-    source.connect(analyser);
     analyserRef.current = analyser;
-
-    const dataArray = new Uint8Array(analyser.fftSize);
     const intervalMs = 300;
     const baseThreshold = 0.0005; // 더 낮춰 작은 음성도 발성으로 인식
     const maxSilenceMs = 10_000;
@@ -293,8 +229,7 @@ const AutoMuteOnSilence = () => {
         sumSquares += normalized * normalized;
         peak = Math.max(peak, Math.abs(normalized));
       }
-      const rms = Math.sqrt(sumSquares / activeArray.length);
-      const level = 0.6 * rms + 0.4 * peak;
+      const { level, rms } = computeLevel(activeArray);
 
       // 음소거/해제 전환 시 카운터와 스무딩을 초기화해 재시작 시 바로 10초를 보장
       if (prevMicEnabledRef.current !== micEnabled) {
@@ -303,14 +238,13 @@ const AutoMuteOnSilence = () => {
         autoMuteToastRef.current = false;
         speakingWhileMutedToastRef.current = false;
         mutedSpeakingToastCountRef.current = 0;
+        faceDetectionFailCountRef.current = 0;
       }
       prevMicEnabledRef.current = micEnabled;
 
       // 주변 노이즈 바닥값을 추정해 동적으로 임계값을 조정
-      const noiseFloor = noiseFloorRef.current;
-      const updatedNoiseFloor =
-        level < noiseFloor * 3 ? noiseFloor * 0.9 + level * 0.1 : noiseFloor * 0.98 + level * 0.02;
-      noiseFloorRef.current = Math.min(updatedNoiseFloor, 0.05);
+      const noiseFloor = updateNoiseFloor(noiseFloorRef.current, level);
+      noiseFloorRef.current = noiseFloor;
       const dynamicThreshold = Math.max(baseThreshold, noiseFloorRef.current * 2 + 0.0005);
 
       // LiveKit이 판단한 발성 상태도 함께 고려
@@ -364,11 +298,16 @@ const AutoMuteOnSilence = () => {
         } else if (Date.now() - silenceStartRef.current > maxSilenceMs) {
           if (!faceDetectionInFlightRef.current) {
             faceDetectionInFlightRef.current = (async () => {
-              const hasCloseFace = await detectCloseFace();
+              const hasCloseFace = await detectCloseFace(
+                getLocalCameraTrack,
+                faceDetectorRef,
+                faceDetectorLoadingRef,
+              );
               if (hasCloseFace === true) {
                 silenceStartRef.current = Date.now();
                 autoMuteToastRef.current = false;
                 speakingWhileMutedToastRef.current = false;
+                faceDetectionFailCountRef.current = 0;
                 return;
               }
               if (hasCloseFace === false) {
@@ -379,12 +318,25 @@ const AutoMuteOnSilence = () => {
                 speakingWhileMutedToastRef.current = false; // 이후 발성 시 안내를 다시 줄 수 있게 초기화
                 room?.localParticipant.setMicrophoneEnabled(false);
                 silenceStartRef.current = null;
+                faceDetectionFailCountRef.current = 0;
               }
               if (hasCloseFace === null) {
-                // 감지 불가 시 보수적으로 음소거를 보류하고 타이머를 다시 시작
-                silenceStartRef.current = Date.now();
-                autoMuteToastRef.current = false;
-                speakingWhileMutedToastRef.current = false;
+                faceDetectionFailCountRef.current += 1;
+                if (faceDetectionFailCountRef.current >= 3) {
+                  toast.warning("10초 이상 말이 없어 마이크를 자동으로 껐습니다.", {
+                    description: "다시 말하려면 마이크를 켜주세요.",
+                  });
+                  autoMuteToastRef.current = true;
+                  speakingWhileMutedToastRef.current = false;
+                  room?.localParticipant.setMicrophoneEnabled(false);
+                  silenceStartRef.current = null;
+                  faceDetectionFailCountRef.current = 0;
+                } else {
+                  // 감지 불가 시 보수적으로 음소거를 보류하고 타이머를 다시 시작
+                  silenceStartRef.current = Date.now();
+                  autoMuteToastRef.current = false;
+                  speakingWhileMutedToastRef.current = false;
+                }
               }
             })().finally(() => {
               faceDetectionInFlightRef.current = null;
