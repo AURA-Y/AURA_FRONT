@@ -18,8 +18,7 @@ interface User {
 interface AuthState {
   user: User | null;
   accessToken: string | null;
-  login: (email: string, password: string) => Promise<void>;
-  signup: (email: string, password: string, nickname: string) => Promise<void>;
+  setAuth: (user: User, accessToken: string) => void;
   logout: () => void;
   isHydrated: boolean;
   setHydrated: () => void;
