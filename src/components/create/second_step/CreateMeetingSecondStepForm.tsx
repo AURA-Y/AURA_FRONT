@@ -14,6 +14,7 @@ import { createRoom } from "@/lib/api/api.room";
 import { errorHandler } from "@/lib/utils";
 import { toast } from "sonner";
 import { useUploadReportFiles, useAssignReportToUser } from "@/hooks/use-filed-setting";
+import { useRef } from "react";
 
 export default function CreateMeetingSecondStepForm() {
   const router = useRouter();
@@ -22,6 +23,7 @@ export default function CreateMeetingSecondStepForm() {
   const uploadMutation = useUploadReportFiles();
   const [assignReportId, setAssignReportId] = useState<string | null>(null);
   const assignQuery = useAssignReportToUser(assignReportId || undefined, !!assignReportId);
+  const lastAssignedId = useRef<string | null>(null);
 
   // 2. formState로 useState 한방에 처리
   const [formState, setFormState] = useState({
@@ -45,11 +47,18 @@ export default function CreateMeetingSecondStepForm() {
 
   // assign 결과가 오면 사용자 roomReportIdxList 업데이트
   useEffect(() => {
-    if (assignQuery.data && user && accessToken) {
+    if (
+      assignQuery.data &&
+      user &&
+      accessToken &&
+      assignReportId &&
+      lastAssignedId.current !== assignReportId
+    ) {
       const nextUser = { ...user, roomReportIdxList: assignQuery.data };
       setAuth(nextUser as any, accessToken);
+      lastAssignedId.current = assignReportId;
     }
-  }, [assignQuery.data, user, accessToken, setAuth]);
+  }, [assignQuery.data, user, accessToken, setAuth, assignReportId]);
 
   // 상태 변경 헬퍼 함수 : 이건 뭐지?
   const updateField = (field: string, value: any) => {
