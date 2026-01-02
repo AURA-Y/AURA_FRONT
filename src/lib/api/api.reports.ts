@@ -6,5 +6,5 @@ import { ReportMetadata } from "@/lib/types/reports.type";
 export const getReportsByIds = async (reportIds: string[]) => {
   if (!reportIds || reportIds.length === 0) return { data: [] };
   const idsParam = reportIds.join(",");
-  return api.get<ReportMetadata[]>(`/reports/batch/by-ids?ids=${idsParam}`);
+  return api.get<ReportMetadata[]>(`/reports/list?ids=${idsParam}`);
 };
