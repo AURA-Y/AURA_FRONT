@@ -49,7 +49,7 @@ export default function CreateMeetingSecondStepForm() {
       const nextUser = { ...user, roomReportIdxList: assignQuery.data };
       setAuth(nextUser as any, accessToken);
     }
-  }, [assignQuery.data, user, accessToken, setAuth]);
+  }, [assignQuery.data]);
 
   // 상태 변경 헬퍼 함수 : 이건 뭐지?
   const updateField = (field: string, value: any) => {

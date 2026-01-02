@@ -18,6 +18,21 @@ const nextConfig: NextConfig = {
   // Backend API 및 LiveKit 프록시 설정 (Mixed Content 해결)
   async rewrites() {
     return [
+      // ========== 로컬 개발 환경 (주석 처리 - 직접 호출 사용) ==========
+      // {
+      //   source: "/api/:path*",
+      //   destination: "http://localhost:3001/api/:path*",
+      // },
+      // {
+      //   source: "/restapi/:path*",
+      //   destination: "http://localhost:3002/restapi/:path*",
+      // },
+      // {
+      //   source: "/livekit-ws/:path*",
+      //   destination: "http://localhost:7880/:path*",
+      // },
+
+      // ========== AWS 배포 환경 (현재 사용 중) ==========
       {
         source: "/api/:path*",
         destination:
