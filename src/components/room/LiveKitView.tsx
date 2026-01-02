@@ -13,7 +13,6 @@ import {
 } from "@livekit/components-react";
 import { VideoPresets, RoomOptions, RoomEvent, Track } from "livekit-client";
 import { VideoGrid } from "./VideoGrid";
-import { useEffect, useRef } from "react";
 import { toast } from "sonner";
 import {
   computeLevel,
@@ -48,7 +47,8 @@ const roomOptions: RoomOptions = {
   adaptiveStream: false,
   dynacast: false,
 };
-  // 적응형 스트림 비활성화 - 항상 최고 화질 수신
+
+// 적응형 스트림 비활성화 - 항상 최고 화질 수신
 interface LiveKitViewProps {
   token: string;
   onDisconnected: () => void;
@@ -96,7 +96,7 @@ const AiSearchPanel = ({ height }: { height: number }) => {
 
   return (
     <div
-      className="border-b border-[#222] p-4 text-sm text-slate-200 overflow-y-auto"
+      className="overflow-y-auto border-b border-[#222] p-4 text-sm text-slate-200"
       style={{ height }}
     >
       <p className="mb-2 text-xs font-semibold text-slate-400">AI 검색 결과</p>
@@ -106,7 +106,7 @@ const AiSearchPanel = ({ height }: { height: number }) => {
         <div className="space-y-3">
           {messages.map((msg) => (
             <div key={msg.id} className="rounded-md bg-[#151515] p-3">
-              <p className="whitespace-pre-wrap text-sm text-slate-100">{msg.text}</p>
+              <p className="text-sm whitespace-pre-wrap text-slate-100">{msg.text}</p>
               {msg.minutes.length > 0 && (
                 <div className="mt-2 text-xs text-slate-400">
                   {msg.minutes.map((m) => (
@@ -191,7 +191,7 @@ const RoomContent = () => {
 // Local 마이크 무음 10초 지속 시 자동 음소거 (500ms interval, fftSize 256)
 const AutoMuteOnSilence = () => {
   const room = useRoomContext();
-  const timerRef = useRef<NodeJS.Timeout>();
+  const timerRef = useRef<NodeJS.Timeout>(undefined);
   const audioCtxRef = useRef<AudioContext | null>(null);
   const trackRef = useRef<MediaStreamTrack | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
@@ -242,6 +242,7 @@ const AutoMuteOnSilence = () => {
     meterCtxRef.current = null;
     meterDataRef.current = null;
   };
+
   const stopAnalysisTrack = () => {
     if (analysisTrackRef.current) {
       analysisTrackRef.current.stop();
@@ -253,11 +254,13 @@ const AutoMuteOnSilence = () => {
     peak: 0,
     smoothed: 0,
     dynamicThreshold: 0,
+    mutedSpeakingGate: 0,
     noiseFloor: 0,
     micEnabled: true,
     lkSpeaking: false,
     silenceStart: null as number | null,
     hasTrack: false,
+    publicationStates: [] as any[],
   });
 
   const cleanup = () => {
@@ -282,7 +285,8 @@ const AutoMuteOnSilence = () => {
     if (trackRef.current?.id === mediaTrack.id) return;
     cleanup();
     trackRef.current = mediaTrack;
-    const deviceId = mediaTrack.getSettings().deviceId || room?.getActiveDevice("audioinput") || null;
+    const deviceId =
+      mediaTrack.getSettings().deviceId || room?.getActiveDevice("audioinput") || null;
     meterDeviceIdRef.current = deviceId;
     if (!deviceId) {
       stopMeter(); // deviceId를 알 수 없으면 보조 모니터를 열지 않음
@@ -308,7 +312,8 @@ const AutoMuteOnSilence = () => {
         source: p.source,
         muted: p.isMuted,
       }));
-      const micEnabled = room?.localParticipant.isMicrophoneEnabled ?? trackRef.current?.enabled ?? false;
+      const micEnabled =
+        room?.localParticipant.isMicrophoneEnabled ?? trackRef.current?.enabled ?? false;
 
       // 디바이스가 바뀌었으면 보조 모니터를 현재 트랙의 deviceId로 재설정
       const currentTrackDeviceId = trackRef.current?.getSettings().deviceId || null;
@@ -345,7 +350,7 @@ const AutoMuteOnSilence = () => {
         meterCtxRef.current.resume().catch(() => {});
       }
 
-      activeAnalyser.getByteTimeDomainData(activeArray);
+      activeAnalyser.getByteTimeDomainData(activeArray as any);
       let sumSquares = 0;
       let peak = 0;
       for (let i = 0; i < activeArray.length; i++) {
@@ -353,7 +358,7 @@ const AutoMuteOnSilence = () => {
         sumSquares += normalized * normalized;
         peak = Math.max(peak, Math.abs(normalized));
       }
-      const { level, rms } = computeLevel(activeArray);
+      const { level, rms } = computeLevel(activeArray as any);
 
       // 음소거/해제 전환 시 카운터와 스무딩을 초기화해 재시작 시 바로 10초를 보장
       if (prevMicEnabledRef.current !== micEnabled) {
@@ -425,7 +430,7 @@ const AutoMuteOnSilence = () => {
               const hasCloseFace = await detectCloseFace(
                 getLocalCameraTrack,
                 faceDetectorRef,
-                faceDetectorLoadingRef,
+                faceDetectorLoadingRef
               );
               if (hasCloseFace === true) {
                 silenceStartRef.current = Date.now();
@@ -489,9 +494,7 @@ const AutoMuteOnSilence = () => {
       try {
         const desiredDeviceId = resolveActiveMicDeviceId();
         if (!desiredDeviceId) return; // 장치가 없으면 보조 스트림을 열지 않음
-        const currentDeviceId = meterStreamRef.current
-          ?.getAudioTracks()[0]
-          ?.getSettings().deviceId;
+        const currentDeviceId = meterStreamRef.current?.getAudioTracks()[0]?.getSettings().deviceId;
         if (meterStreamRef.current && desiredDeviceId === currentDeviceId) return;
 
         stopMeter();
