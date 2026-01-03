@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft, CalendarDays, Paperclip, FileText } from "lucide-react";
 import { getDownloadUrl } from "@/lib/api/api.s3-reports";
 import { useAuthStore } from "@/lib/store/auth.store";
+import { deleteReport } from "@/lib/api/api.reports";
 import { useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
 
@@ -14,7 +15,7 @@ interface ItemOpenProps {
 }
 
 const ItemOpen = ({ selected, onClose }: ItemOpenProps) => {
-  const accessToken = useAuthStore((state) => state.accessToken);
+  const { user, accessToken, setAuth } = useAuthStore();
 
   // 파일 다운로드 Mutation
   const downloadMutation = useMutation({
@@ -49,6 +50,23 @@ const ItemOpen = ({ selected, onClose }: ItemOpenProps) => {
     },
   });
 
+  const deleteMutation = useMutation({
+    mutationFn: async (reportId: string) => {
+      await deleteReport(reportId);
+    },
+    onError: (error: unknown) => {
+      errorHandler(error);
+    },
+    onSuccess: (_data, variables) => {
+      toast.success("회의록을 삭제했습니다.");
+      if (user && accessToken) {
+        const updatedList = (user.roomReportIdxList || []).filter((id) => id !== variables);
+        setAuth({ ...user, roomReportIdxList: updatedList } as any, accessToken);
+      }
+      onClose();
+    },
+  });
+
   if (!selected) return null;
 
   const displayTitle = selected.topic;
@@ -79,6 +97,21 @@ const ItemOpen = ({ selected, onClose }: ItemOpenProps) => {
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <h2 className="text-2xl font-bold">{displayTitle}</h2>
+                  {user?.roomReportIdxList?.includes(selected.reportId) && (
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => {
+                        if (deleteMutation.isPending) return;
+                        const ok = window.confirm("이 회의록을 삭제하시겠습니까?");
+                        if (!ok) return;
+                        deleteMutation.mutate(selected.reportId);
+                      }}
+                      disabled={deleteMutation.isPending}
+                    >
+                      {deleteMutation.isPending ? "삭제 중..." : "삭제"}
+                    </Button>
+                  )}
                 </div>
                 <div className="flex items-center gap-2 text-sm text-slate-500">
                   <CalendarDays className="h-4 w-4" />
