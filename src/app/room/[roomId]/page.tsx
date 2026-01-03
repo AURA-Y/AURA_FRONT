@@ -25,14 +25,14 @@ export default function RoomPage() {
       return;
     }
 
-    // 1️⃣ 인증 체크 (API 호출을 위한 accessToken)
+    // 인증 체크 (API 호출을 위한 accessToken)
     if (!user || !accessToken) {
       toast.error("로그인이 필요합니다.");
       router.push("/login");
       return;
     }
 
-    // 2️⃣ LiveKit 토큰 체크 (회의방 접속을 위한 token)
+    // LiveKit 토큰 체크 (회의방 접속을 위한 token)
     const storedToken = sessionStorage.getItem(`room_${roomId}_token`);
 
     if (!storedToken) {
@@ -41,7 +41,7 @@ export default function RoomPage() {
       return;
     }
 
-    // 3️⃣ 카메라/마이크 권한 먼저 요청
+    // 카메라/마이크 권한 먼저 요청
     const requestMediaPermissions = async () => {
       try {
         const stream = await navigator.mediaDevices.getUserMedia({
