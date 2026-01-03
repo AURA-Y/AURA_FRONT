@@ -10,16 +10,18 @@ import { useAuthStore } from "@/lib/store/auth.store";
 import { CreateRoomFormValues, createRoomSchema } from "@/lib/schema/room/roomCreate.schema";
 import { useEffect, useRef, useState } from "react";
 import { uploadReportFiles, createReport } from "@/lib/api/api.reports";
-import { createRoom, createRoomInDB } from "@/lib/api/api.room";
+import { createRoom } from "@/lib/api/api.room";
 import { errorHandler } from "@/lib/utils";
 import { toast } from "sonner";
 import { useUploadReportFiles, useAssignReportToUser } from "@/hooks/use-filed-setting";
+import { useCreateRoomInDB } from "@/hooks/use-create-meeting";
 
 export default function CreateMeetingSecondStepForm() {
   const router = useRouter();
   const { user, accessToken, setAuth } = useAuthStore();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const uploadMutation = useUploadReportFiles();
+  const createRoomMutation = useCreateRoomInDB();
   const [assignReportId, setAssignReportId] = useState<string | null>(null);
   const assignQuery = useAssignReportToUser(assignReportId || undefined, !!assignReportId);
   const lastAssignedIdRef = useRef<string | null>(null);
@@ -117,28 +119,21 @@ export default function CreateMeetingSecondStepForm() {
       });
 
       // 5) PostgreSQL에 Room 저장 (master 필드에 userId 저장)
-      console.log("Attempting to save room to DB. User:", user);
-      if (user?.id) {
-        console.log("Creating room in DB with userId:", user.id);
-        try {
-          await createRoomInDB({
-            roomId,
-            topic: formState.roomTitle,
-            description: formState.description,
-            master: user.id,
-            reportId: details.reportId,
-            attendees: [user.id],
-            maxParticipants: formState.maxParticipants,
-            token,
-            upload_File_list: uploadFileList,
-          });
-          console.log("Room saved to DB successfully with reportId:", details.reportId);
-        } catch (dbError) {
-          console.error("Failed to save room to DB:", dbError);
-        }
-      } else {
-        console.error("Cannot save room to DB: user.id is missing", user);
+      if (!user?.id) {
+        throw new Error("사용자 정보가 없습니다. 로그인 후 다시 시도해주세요.");
       }
+
+      await createRoomMutation.mutateAsync({
+        roomId,
+        topic: formState.roomTitle,
+        description: formState.description,
+        master: user.id,
+        reportId: details.reportId,
+        attendees: [user.id],
+        maxParticipants: formState.maxParticipants,
+        token,
+        upload_File_list: uploadFileList,
+      });
 
       sessionStorage.setItem(`room_${roomId}_nickname`, formState.user);
       if (token) {
