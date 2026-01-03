@@ -2,7 +2,7 @@ import { formatDate, errorHandler } from "@/lib/utils";
 import { ReportDetails } from "@/lib/types/reports.type";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, CalendarDays, Paperclip, FileText } from "lucide-react";
+import { ArrowLeft, CalendarDays, Paperclip, FileText, Trash2, XCircle } from "lucide-react";
 import { getDownloadUrl } from "@/lib/api/api.s3-reports";
 import { useAuthStore } from "@/lib/store/auth.store";
 import { deleteReport } from "@/lib/api/api.reports";
@@ -99,8 +99,9 @@ const ItemOpen = ({ selected, onClose }: ItemOpenProps) => {
                   <h2 className="text-2xl font-bold">{displayTitle}</h2>
                   {user?.roomReportIdxList?.includes(selected.reportId) && (
                     <Button
-                      variant="destructive"
-                      size="sm"
+                      variant="ghost"
+                      size="icon"
+                      className="h-10 w-10 rounded-full border border-slate-200 bg-white text-slate-800 shadow-sm hover:bg-slate-50 hover:border-slate-300"
                       onClick={() => {
                         if (deleteMutation.isPending) return;
                         const ok = window.confirm("이 회의록을 삭제하시겠습니까?");
@@ -108,8 +109,13 @@ const ItemOpen = ({ selected, onClose }: ItemOpenProps) => {
                         deleteMutation.mutate(selected.reportId);
                       }}
                       disabled={deleteMutation.isPending}
+                      aria-label="회의록 삭제"
                     >
-                      {deleteMutation.isPending ? "삭제 중..." : "삭제"}
+                      {deleteMutation.isPending ? (
+                        <Trash2 className="h-4 w-4 animate-pulse" />
+                      ) : (
+                        <XCircle className="h-4 w-4" />
+                      )}
                     </Button>
                   )}
                 </div>
