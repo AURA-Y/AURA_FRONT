@@ -1,6 +1,6 @@
 import { useMutation } from "@tanstack/react-query";
 import { createMeeting } from "@/lib/api/api.meeting";
-import { createRoomInDB, deleteRoomFromDB } from "@/lib/api/api.room";
+import { createRoomInDB, deleteRoomFromDB, joinRoomInDB } from "@/lib/api/api.room";
 import { CreateMeetingSchema } from "@/lib/schema/room/roomAIAgentSetting.schema";
 import { CreateRoomInDBParams } from "@/lib/types/room.type";
 
@@ -30,5 +30,16 @@ export const useCreateRoomInDB = () => {
 export const useDeleteRoomFromDB = () => {
   return useMutation({
     mutationFn: (roomId: string) => deleteRoomFromDB(roomId),
+  });
+};
+
+/**
+ * PostgreSQL Room에 참여자 등록
+ * 사용 예: const joinRoomMutation = useJoinRoomInDB();
+ *          await joinRoomMutation.mutateAsync(roomId);
+ */
+export const useJoinRoomInDB = () => {
+  return useMutation({
+    mutationFn: (roomId: string) => joinRoomInDB(roomId),
   });
 };

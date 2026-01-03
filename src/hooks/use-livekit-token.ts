@@ -20,13 +20,8 @@ export function useJoinRoom() {
         userName: user,
       });
 
-      // PostgreSQL DB에 참여자 등록 (userId 추가)
-      try {
-        await joinRoomInDB(room);
-      } catch (dbError) {
-        // DB 등록 실패해도 회의 참여는 가능하도록
-        console.warn("Failed to register attendee in DB:", dbError);
-      }
+      // PostgreSQL DB에 참여자 등록 (실패해도 회의 참여는 가능하도록)
+      await joinRoomInDB(room).catch(() => {});
 
       return { room, user, ...response };
     },
@@ -44,12 +39,8 @@ export function useJoinRoom() {
       // 410 Gone 에러: LiveKit 방이 삭제됨 (5분 emptyTimeout)
       if (axios.isAxiosError(error) && error.response?.status === 410) {
         toast.error("회의방이 종료되었습니다.");
-        // PostgreSQL DB에서도 삭제
-        try {
-          await deleteRoomFromDB(variables.room);
-        } catch (dbError) {
-          console.error("Failed to delete room from DB:", dbError);
-        }
+        // PostgreSQL DB에서도 삭제 (실패해도 무시)
+        await deleteRoomFromDB(variables.room).catch(() => {});
         return;
       }
       errorHandler(error);
