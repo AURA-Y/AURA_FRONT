@@ -15,7 +15,7 @@ env:
   # Build-time environment variables (hardcoded as per user request/Dockerfile)
   NEXT_PUBLIC_API_URL: "https://aura.ai.kr"
   NEXT_PUBLIC_LIVEKIT_API_URL: "https://aura.ai.kr"
-  NEXT_PUBLIC_LIVEKIT_URL: "wss://aura.ai.kr/livekit-ws"
+  NEXT_PUBLIC_LIVEKIT_URL: "wss://livekit.aura.ai.kr"
 
 jobs:
   deploy:
