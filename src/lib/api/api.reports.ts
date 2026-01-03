@@ -21,10 +21,14 @@ type PresignStartResponse = {
 
 type PresignPartResponse = { presignedUrl: string };
 
-const startMultipartUpload = async (file: File): Promise<PresignStartResponse> => {
+const startMultipartUpload = async (
+  file: File,
+  folderId?: string
+): Promise<PresignStartResponse> => {
   const { data } = await api.post<PresignStartResponse>("/restapi/reports/multipart/start", {
     fileName: file.name,
     fileType: file.type || "application/octet-stream",
+    folderId,
   });
   return data;
 };
@@ -56,10 +60,11 @@ export const uploadReportFiles = async (files: File[]): Promise<FileInfo[]> => {
   if (!files || files.length === 0) return [];
 
   const uploaded: FileInfo[] = [];
+  const uploadRoot = crypto.randomUUID(); // 한 업로드 세션 내 폴더 정리
 
   for (const file of files) {
     const fileType = file.type || "application/octet-stream";
-    const { uploadId, key, fileId, fileUrl } = await startMultipartUpload(file);
+    const { uploadId, key, fileId, fileUrl } = await startMultipartUpload(file, uploadRoot);
 
     const parts: { partNumber: number; eTag: string }[] = [];
     let partNumber = 1;
