@@ -126,6 +126,11 @@ export const assignReportToUser = async (reportId: string) => {
   return data.roomReportIdxList;
 };
 
+// 보고서 요약 업데이트
+export const updateReportSummary = async (reportId: string, summary: string) => {
+  await api.patch(`/restapi/reports/${reportId}/summary`, { summary });
+};
+
 // 보고서 삭제
 export const deleteReport = async (reportId: string) => {
   await api.delete(`/restapi/reports/${reportId}`);

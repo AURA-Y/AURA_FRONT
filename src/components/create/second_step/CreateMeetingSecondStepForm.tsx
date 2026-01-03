@@ -126,12 +126,13 @@ export default function CreateMeetingSecondStepForm() {
             topic: formState.roomTitle,
             description: formState.description,
             master: user.id,
+            reportId: details.reportId,
             attendees: [user.id],
             maxParticipants: formState.maxParticipants,
             token,
             upload_File_list: uploadFileList,
           });
-          console.log("Room saved to DB successfully");
+          console.log("Room saved to DB successfully with reportId:", details.reportId);
         } catch (dbError) {
           console.error("Failed to save room to DB:", dbError);
         }

@@ -40,6 +40,7 @@ interface CreateRoomInDBParams {
   topic: string;
   description?: string;
   master: string;
+  reportId?: string;
   attendees?: string[];
   maxParticipants?: number;
   token?: string;
@@ -55,6 +56,7 @@ interface RoomInfo {
   attendees: string[];
   maxParticipants: number;
   master: string;
+  reportId?: string;
   masterUser?: {
     userId: string;
     email: string;
@@ -92,6 +94,16 @@ const leaveRoomInDB = async (roomId: string): Promise<RoomInfo> => {
   return data;
 };
 
+interface UserRoleResponse {
+  isMaster: boolean;
+  role: 'master' | 'attendee';
+}
+
+const checkUserRole = async (roomId: string): Promise<UserRoleResponse> => {
+  const { data } = await api.get<UserRoleResponse>(`/restapi/rooms/${roomId}/role`);
+  return data;
+};
+
 export {
   createRoom,
   getAllRooms,
@@ -103,4 +115,5 @@ export {
   deleteRoomFromDB,
   joinRoomInDB,
   leaveRoomInDB,
+  checkUserRole,
 };

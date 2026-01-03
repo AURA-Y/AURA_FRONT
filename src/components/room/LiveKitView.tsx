@@ -22,8 +22,10 @@ import {
   updateNoiseFloor,
 } from "@/lib/utils/automute.utils";
 import { useIsMaster } from "@/hooks/use-room-master";
-import { deleteRoomFromDB } from "@/lib/api/api.room";
+import { deleteRoomFromDB, getRoomInfoFromDB } from "@/lib/api/api.room";
+import { deleteReport, updateReportSummary } from "@/lib/api/api.reports";
 import { useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 
 // VP9 최고 화질 설정
 const roomOptions: RoomOptions = {
@@ -171,9 +173,8 @@ const RoomContent = ({
       <div className="flex flex-1 overflow-hidden">
         <VideoGrid />
         <div
-          className={`h-full w-[320px] border-l border-[#333] bg-[#0e0e0e] ${
-            showChat ? "block" : "hidden"
-          }`}
+          className={`h-full w-[320px] border-l border-[#333] bg-[#0e0e0e] ${showChat ? "block" : "hidden"
+            }`}
         >
           <div className="flex h-full flex-col" ref={sidebarRef}>
             <AiSearchPanel height={panelHeight} />
@@ -311,7 +312,7 @@ const AutoMuteOnSilence = () => {
 
     stopAnalysisTrack();
     const { analyser, ctx, analysisTrack, dataArray } = createAnalyserFromTrack(mediaTrack);
-    ctx.resume().catch(() => {});
+    ctx.resume().catch(() => { });
     audioCtxRef.current = ctx;
     analysisTrackRef.current = analysisTrack;
     analyserRef.current = analyser;
@@ -360,10 +361,10 @@ const AutoMuteOnSilence = () => {
       if (!activeAnalyser || !activeArray) return;
 
       if (audioCtxRef.current?.state === "suspended") {
-        audioCtxRef.current.resume().catch(() => {});
+        audioCtxRef.current.resume().catch(() => { });
       }
       if (meterCtxRef.current?.state === "suspended") {
-        meterCtxRef.current.resume().catch(() => {});
+        meterCtxRef.current.resume().catch(() => { });
       }
 
       activeAnalyser.getByteTimeDomainData(activeArray as any);
@@ -602,16 +603,61 @@ const CustomLeaveButton = ({
 }) => {
   const { isMaster, isLoading } = useIsMaster(roomId);
   const room = useRoomContext();
-  const [showOptions, setShowOptions] = useState(false);
+  const [modalStep, setModalStep] = useState<null | "summary" | "confirm">(null);
+  const queryClient = useQueryClient();
+
+  const handleSummary = async () => {
+    try {
+      // roomId로 reportId 조회
+      const roomInfo = await getRoomInfoFromDB(roomId);
+      if (!roomInfo.reportId) {
+        toast.error("회의록 정보를 찾을 수 없습니다.");
+        return;
+      }
+
+      // 회의록 요약 임시 텍스트 저장
+      await updateReportSummary(
+        roomInfo.reportId,
+        "(구현 예정) 회의록 요약을 여기에 넣을것입니다."
+      );
+      console.log("회의록 요약이 저장되었습니다.");
+      // 회의방에서 나가기
+      room?.disconnect();
+      onDisconnected();
+    } catch (error) {
+      console.error("회의록 요약 저장 실패:", error);
+      toast.error("회의록 요약 저장에 실패했습니다.");
+    }
+  };
 
   const handleEndMeeting = async () => {
     try {
+      // roomId로 reportId 조회
+      const roomInfo = await getRoomInfoFromDB(roomId);
+
+      // reportId가 있으면 삭제
+      if (roomInfo.reportId) {
+        try {
+          await deleteReport(roomInfo.reportId);
+          console.log("회의록이 삭제되었습니다.");
+        } catch (reportError) {
+          console.warn("회의록 삭제 실패:", reportError);
+          // 회의록 삭제 실패해도 계속 진행
+        }
+      }
+
+      // 회의방 삭제
       await deleteRoomFromDB(roomId);
       console.log("회의가 종료되었습니다.");
+
+      // React Query 캐시 무효화 - 홈페이지에서 최신 데이터 로드하도록
+      queryClient.invalidateQueries({ queryKey: ["Rooms"] });
+
       room?.disconnect();
       onDisconnected();
     } catch (error) {
       console.error("회의 종료 실패:", error);
+      toast.error("회의 종료에 실패했습니다.");
     }
   };
 
@@ -622,43 +668,80 @@ const CustomLeaveButton = ({
 
   const handleLeaveClick = () => {
     if (isMaster) {
-      setShowOptions(!showOptions);
+      setModalStep("summary");
     } else {
       handleLeaveMeeting();
     }
   };
 
   return (
-    <div className="relative">
-      {/* 회의 종료 / 회의 나가기 옵션 (master만) */}
-      {showOptions && isMaster && (
-        <div className="absolute right-0 bottom-full mb-2 flex flex-col gap-2">
-          <button
-            onClick={handleEndMeeting}
-            className="lk-button whitespace-nowrap shadow-lg"
-            style={{ color: "#ef4444" }}
+    <>
+      {/* 모달 배경 */}
+      {modalStep && (
+        <div
+          className="fixed inset-0 bg-black/60 flex items-center justify-center z-50"
+          onClick={() => setModalStep(null)}
+        >
+          <div
+            className="bg-[#1a1a1a] rounded-lg p-6 min-w-[400px] border border-[#333]"
+            onClick={(e) => e.stopPropagation()}
           >
-            회의 종료
-          </button>
-          <button
-            onClick={handleLeaveMeeting}
-            className="lk-button whitespace-nowrap shadow-lg"
-            style={{ color: "#ef4444" }}
-          >
-            회의 나가기
-          </button>
+            {modalStep === "summary" && (
+              <>
+                <h2 className="text-xl font-bold text-white mb-4">
+                  회의록을 요약하시겠습니까?
+                </h2>
+                <div className="flex gap-3 justify-end">
+                  <button
+                    onClick={handleSummary}
+                    className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded transition"
+                  >
+                    요약
+                  </button>
+                  <button
+                    onClick={() => setModalStep("confirm")}
+                    className="px-6 py-2 bg-gray-600 hover:bg-gray-700 text-white font-bold rounded transition"
+                  >
+                    회의 나가기
+                  </button>
+                </div>
+              </>
+            )}
+
+            {modalStep === "confirm" && (
+              <>
+                <h2 className="text-xl font-bold text-white mb-4">
+                  회의를 종료하시겠습니까?
+                </h2>
+                <div className="flex gap-3 justify-end">
+                  <button
+                    onClick={handleEndMeeting}
+                    className="px-6 py-2 bg-red-600 hover:bg-red-700 text-white font-bold rounded transition"
+                  >
+                    회의 종료
+                  </button>
+                  <button
+                    onClick={handleLeaveMeeting}
+                    className="px-6 py-2 bg-gray-600 hover:bg-gray-700 text-white font-bold rounded transition"
+                  >
+                    회의 나가기
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
         </div>
       )}
 
       {/* 나가기 버튼 */}
       <button
         onClick={handleLeaveClick}
-        className="lk-button !border !border-red-600 !text-red-600"
+        className="lk-button !border !border-red-600 !text-red-600 font-bold"
         disabled={isLoading}
       >
         Leave
       </button>
-    </div>
+    </>
   );
 };
 
