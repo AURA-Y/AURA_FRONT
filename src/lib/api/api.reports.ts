@@ -17,18 +17,21 @@ type PresignStartResponse = {
   key: string;
   fileId: string;
   fileUrl: string;
+  folderId?: string;
 };
 
 type PresignPartResponse = { presignedUrl: string };
 
 const startMultipartUpload = async (
   file: File,
-  folderId?: string
+  folderId?: string,
+  reportId?: string
 ): Promise<PresignStartResponse> => {
   const { data } = await api.post<PresignStartResponse>("/restapi/reports/multipart/start", {
     fileName: file.name,
     fileType: file.type || "application/octet-stream",
     folderId,
+    reportId,
   });
   return data;
 };
@@ -56,15 +59,22 @@ const completeMultipartUpload = async (params: {
 };
 
 // 브라우저→S3 직업로드 후 FileInfo 반환
-export const uploadReportFiles = async (files: File[]): Promise<FileInfo[]> => {
+export const uploadReportFiles = async (
+  files: File[],
+  folderId?: string,
+  reportId?: string
+): Promise<FileInfo[]> => {
   if (!files || files.length === 0) return [];
 
   const uploaded: FileInfo[] = [];
-  const uploadRoot = crypto.randomUUID(); // 한 업로드 세션 내 폴더 정리
 
   for (const file of files) {
     const fileType = file.type || "application/octet-stream";
-    const { uploadId, key, fileId, fileUrl } = await startMultipartUpload(file, uploadRoot);
+    const { uploadId, key, fileId, fileUrl, folderId: resolvedFolder } = await startMultipartUpload(
+      file,
+      folderId,
+      reportId
+    );
 
     const parts: { partNumber: number; eTag: string }[] = [];
     let partNumber = 1;
@@ -113,6 +123,8 @@ export const uploadReportFiles = async (files: File[]): Promise<FileInfo[]> => {
 
 // 보고서 생성 (DB + S3 JSON)
 export const createReport = async (payload: {
+  reportId?: string;
+  folderId?: string;
   topic: string;
   summary?: string;
   attendees: string[];
