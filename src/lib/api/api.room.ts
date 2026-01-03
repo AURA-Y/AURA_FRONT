@@ -7,6 +7,9 @@ import {
   CreateRoomResponse,
   GetAllRoomsResponse,
   GetRoomResponse,
+  CreateRoomInDBParams,
+  RoomInfo,
+  UserRoleResponse,
 } from "../types/room.type";
 
 // 방 생성 api - POST /room/create
@@ -35,35 +38,6 @@ const getRoomByRoomId = async (roomId: string): Promise<GetRoomResponse> => {
 };
 
 // PostgreSQL Room Management APIs
-interface CreateRoomInDBParams {
-  roomId: string;
-  topic: string;
-  description?: string;
-  master: string;
-  reportId?: string;
-  attendees?: string[];
-  maxParticipants?: number;
-  token?: string;
-  livekitUrl?: string;
-  upload_File_list?: any[];
-}
-
-interface RoomInfo {
-  roomId: string;
-  createdAt: string;
-  topic: string;
-  description?: string;
-  attendees: string[];
-  maxParticipants: number;
-  master: string;
-  reportId?: string;
-  masterUser?: {
-    userId: string;
-    email: string;
-    nickName: string;
-  };
-}
-
 const createRoomInDB = async (params: CreateRoomInDBParams): Promise<RoomInfo> => {
   const { data } = await api.post<RoomInfo>("/restapi/rooms", params);
   return data;
@@ -88,11 +62,6 @@ const joinRoomInDB = async (roomId: string): Promise<RoomInfo> => {
   const { data } = await api.post<RoomInfo>(`/restapi/rooms/${roomId}/join`);
   return data;
 };
-
-interface UserRoleResponse {
-  isMaster: boolean;
-  role: "master" | "attendee";
-}
 
 const checkUserRole = async (roomId: string): Promise<UserRoleResponse> => {
   const { data } = await api.get<UserRoleResponse>(`/restapi/rooms/${roomId}/role`);

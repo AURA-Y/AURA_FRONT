@@ -1,6 +1,6 @@
 "use client";
 
-import { Room } from "@/lib/types/room.type";
+import { Room, RoomInfo } from "@/lib/types/room.type";
 import { Users, Calendar, ArrowRight } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -8,20 +8,6 @@ import { motion } from "framer-motion";
 import { format } from "date-fns";
 import { useJoinRoom } from "@/hooks/use-livekit-token";
 import { useAuthStore } from "@/lib/store/auth.store";
-
-interface RoomInfo {
-  roomId: string;
-  topic: string;
-  description?: string;
-  maxParticipants: number;
-  createdAt: string;
-  master: string;
-  masterUser?: {
-    userId: string;
-    email: string;
-    nickName: string;
-  };
-}
 
 export default function RoomCard({ room }: { room: Room | RoomInfo }) {
   const { mutate: joinRoom, isPending } = useJoinRoom();
@@ -54,7 +40,9 @@ export default function RoomCard({ room }: { room: Room | RoomInfo }) {
           {"roomTitle" in room ? room.roomTitle : room.topic}
         </h3>
         <p className="mb-6 line-clamp-2 h-10 text-sm text-slate-500">
-          {"description" in room && room.description ? room.description : "설명이 없는 회의방입니다."}
+          {"description" in room && room.description
+            ? room.description
+            : "설명이 없는 회의방입니다."}
         </p>
 
         <div className="flex items-center justify-between border-t border-slate-50 pt-4 dark:border-slate-800">
