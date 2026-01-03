@@ -81,6 +81,12 @@ export const calculateTotalSelectedCount = (
 
 export const errorHandler = (error: unknown) => {
   if (axios.isAxiosError(error)) {
+    // 410 Gone: LiveKit 방 자동 삭제 (5분 emptyTimeout)
+    if (error.response?.status === 410) {
+      toast.error("회의방이 종료되었습니다.");
+      return;
+    }
+
     const errorMessage = error.response?.data?.message || "요청 처리 중 문제가 발생했습니다.";
     toast.error(errorMessage);
     return;

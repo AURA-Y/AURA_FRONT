@@ -36,12 +36,9 @@ export function useJoinRoom() {
       router.push(`/room/${room}`);
     },
     onError: async (error, variables) => {
-      // 410 Gone 에러: LiveKit 방이 삭제됨 (5분 emptyTimeout)
+      // 410 Gone 에러일 때만 PostgreSQL DB에서도 방 삭제
       if (axios.isAxiosError(error) && error.response?.status === 410) {
-        toast.error("회의방이 종료되었습니다.");
-        // PostgreSQL DB에서도 삭제 (실패해도 무시)
         await deleteRoomFromDB(variables.room).catch(() => {});
-        return;
       }
       errorHandler(error);
     },
