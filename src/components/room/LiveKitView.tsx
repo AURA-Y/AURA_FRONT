@@ -21,6 +21,9 @@ import {
   loadFaceDetector,
   updateNoiseFloor,
 } from "@/lib/utils/automute.utils";
+import { useIsMaster } from "@/hooks/use-room-master";
+import { deleteRoomFromDB } from "@/lib/api/api.room";
+import { useRouter } from "next/navigation";
 
 // VP9 최고 화질 설정
 const roomOptions: RoomOptions = {
@@ -50,6 +53,7 @@ const roomOptions: RoomOptions = {
 
 // 적응형 스트림 비활성화 - 항상 최고 화질 수신
 interface LiveKitViewProps {
+  roomId: string;
   token: string;
   onDisconnected: () => void;
 }
@@ -124,7 +128,13 @@ const AiSearchPanel = ({ height }: { height: number }) => {
   );
 };
 
-const RoomContent = () => {
+const RoomContent = ({
+  roomId,
+  onDisconnected,
+}: {
+  roomId: string;
+  onDisconnected: () => void;
+}) => {
   const layoutContext = useLayoutContext();
   const showChat = layoutContext?.widget.state?.showChat;
   const sidebarRef = useRef<HTMLDivElement>(null);
@@ -161,8 +171,9 @@ const RoomContent = () => {
       <div className="flex flex-1 overflow-hidden">
         <VideoGrid />
         <div
-          className={`h-full w-[320px] border-l border-[#333] bg-[#0e0e0e] ${showChat ? "block" : "hidden"
-            }`}
+          className={`h-full w-[320px] border-l border-[#333] bg-[#0e0e0e] ${
+            showChat ? "block" : "hidden"
+          }`}
         >
           <div className="flex h-full flex-col" ref={sidebarRef}>
             <AiSearchPanel height={panelHeight} />
@@ -181,7 +192,13 @@ const RoomContent = () => {
           </div>
         </div>
       </div>
-      <ControlBar controls={{ chat: true }} />
+
+      <div className="relative flex items-center justify-center [&_.lk-control-bar]:border-t-0">
+        <div className="flex items-center">
+          <ControlBar controls={{ chat: true, leave: false }} />
+          <CustomLeaveButton roomId={roomId} onDisconnected={onDisconnected} />
+        </div>
+      </div>
       <RoomAudioRenderer />
     </>
   );
@@ -294,7 +311,7 @@ const AutoMuteOnSilence = () => {
 
     stopAnalysisTrack();
     const { analyser, ctx, analysisTrack, dataArray } = createAnalyserFromTrack(mediaTrack);
-    ctx.resume().catch(() => { });
+    ctx.resume().catch(() => {});
     audioCtxRef.current = ctx;
     analysisTrackRef.current = analysisTrack;
     analyserRef.current = analyser;
@@ -343,10 +360,10 @@ const AutoMuteOnSilence = () => {
       if (!activeAnalyser || !activeArray) return;
 
       if (audioCtxRef.current?.state === "suspended") {
-        audioCtxRef.current.resume().catch(() => { });
+        audioCtxRef.current.resume().catch(() => {});
       }
       if (meterCtxRef.current?.state === "suspended") {
-        meterCtxRef.current.resume().catch(() => { });
+        meterCtxRef.current.resume().catch(() => {});
       }
 
       activeAnalyser.getByteTimeDomainData(activeArray as any);
@@ -576,7 +593,76 @@ const AutoMuteOnSilence = () => {
   return null;
 };
 
-const LiveKitView = ({ token, onDisconnected }: LiveKitViewProps) => {
+const CustomLeaveButton = ({
+  roomId,
+  onDisconnected,
+}: {
+  roomId: string;
+  onDisconnected: () => void;
+}) => {
+  const { isMaster, isLoading } = useIsMaster(roomId);
+  const room = useRoomContext();
+  const [showOptions, setShowOptions] = useState(false);
+
+  const handleEndMeeting = async () => {
+    try {
+      await deleteRoomFromDB(roomId);
+      console.log("회의가 종료되었습니다.");
+      room?.disconnect();
+      onDisconnected();
+    } catch (error) {
+      console.error("회의 종료 실패:", error);
+    }
+  };
+
+  const handleLeaveMeeting = () => {
+    room?.disconnect();
+    onDisconnected();
+  };
+
+  const handleLeaveClick = () => {
+    if (isMaster) {
+      setShowOptions(!showOptions);
+    } else {
+      handleLeaveMeeting();
+    }
+  };
+
+  return (
+    <div className="relative">
+      {/* 회의 종료 / 회의 나가기 옵션 (master만) */}
+      {showOptions && isMaster && (
+        <div className="absolute right-0 bottom-full mb-2 flex flex-col gap-2">
+          <button
+            onClick={handleEndMeeting}
+            className="lk-button whitespace-nowrap shadow-lg"
+            style={{ color: "#ef4444" }}
+          >
+            회의 종료
+          </button>
+          <button
+            onClick={handleLeaveMeeting}
+            className="lk-button whitespace-nowrap shadow-lg"
+            style={{ color: "#ef4444" }}
+          >
+            회의 나가기
+          </button>
+        </div>
+      )}
+
+      {/* 나가기 버튼 */}
+      <button
+        onClick={handleLeaveClick}
+        className="lk-button !border !border-red-600 !text-red-600"
+        disabled={isLoading}
+      >
+        Leave
+      </button>
+    </div>
+  );
+};
+
+const LiveKitView = ({ roomId, token, onDisconnected }: LiveKitViewProps) => {
   return (
     <LiveKitRoom
       video={true}
@@ -591,7 +677,7 @@ const LiveKitView = ({ token, onDisconnected }: LiveKitViewProps) => {
     >
       <AutoMuteOnSilence />
       <LayoutContextProvider>
-        <RoomContent />
+        <RoomContent roomId={roomId} onDisconnected={onDisconnected} />
       </LayoutContextProvider>
     </LiveKitRoom>
   );

@@ -170,7 +170,6 @@ body::-webkit-scrollbar-thumb:hover {
   background-clip: content-box;
 }
 
-
 /* 4. Tailwind 테마 확장 (v4 방식) */
 /* 상단에서 정의한 CSS 변수들을 Tailwind의 유틸리티 클래스(bg-primary 등)로 연결합니다. */
 @theme inline {
@@ -215,4 +214,10 @@ body::-webkit-scrollbar-thumb:hover {
   h2 {
     @apply text-2xl font-semibold tracking-tight; /* 서브 제목 스타일 */
   }
+}
+
+/* 6. LiveKit ControlBar 커스텀 스타일 */
+/* ControlBar 상단 border 제거 */
+.lk-control-bar {
+  border-top: none !important;
 }
