@@ -93,12 +93,22 @@ export default function CreateMeetingSecondStepForm() {
 
     setIsSubmitting(true);
     try {
+      const draftReportId = crypto.randomUUID();
+      const now = new Date();
+      const folderId = `${now.getFullYear()}/${String(now.getMonth() + 1).padStart(2, "0")}/${String(
+        now.getDate()
+      ).padStart(2, "0")}/${user?.id || "anon"}/${draftReportId}`;
+
       // 1) 파일 업로드 -> S3 메타 획득
       const uploadFileList =
-        formState.files.length > 0 ? await uploadMutation.mutateAsync(formState.files) : [];
+        formState.files.length > 0
+          ? await uploadMutation.mutateAsync({ files: formState.files, folderId, reportId: draftReportId })
+          : [];
 
       // 2) 보고서(목데이터) 생성: DB + S3 JSON
       const details = await createReport({
+        reportId: draftReportId,
+        folderId,
         topic: formState.roomTitle,
         summary: `${formState.description} (자동 생성된 목데이터 요약)`,
         attendees: [formState.user || "참석자"],
