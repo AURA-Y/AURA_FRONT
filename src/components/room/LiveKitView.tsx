@@ -183,8 +183,9 @@ const RoomContent = ({
       <div className="flex flex-1 overflow-hidden">
         <VideoGrid />
         <div
-          className={`h-full w-[320px] border-l border-[#333] bg-[#0e0e0e] ${showChat ? "block" : "hidden"
-            }`}
+          className={`h-full w-[320px] border-l border-[#333] bg-[#0e0e0e] ${
+            showChat ? "block" : "hidden"
+          }`}
         >
           <div className="flex h-full flex-col" ref={sidebarRef}>
             <AiSearchPanel height={panelHeight} />
@@ -322,7 +323,7 @@ const AutoMuteOnSilence = () => {
 
     stopAnalysisTrack();
     const { analyser, ctx, analysisTrack, dataArray } = createAnalyserFromTrack(mediaTrack);
-    ctx.resume().catch(() => { });
+    ctx.resume().catch(() => {});
     audioCtxRef.current = ctx;
     analysisTrackRef.current = analysisTrack;
     analyserRef.current = analyser;
@@ -371,10 +372,10 @@ const AutoMuteOnSilence = () => {
       if (!activeAnalyser || !activeArray) return;
 
       if (audioCtxRef.current?.state === "suspended") {
-        audioCtxRef.current.resume().catch(() => { });
+        audioCtxRef.current.resume().catch(() => {});
       }
       if (meterCtxRef.current?.state === "suspended") {
-        meterCtxRef.current.resume().catch(() => { });
+        meterCtxRef.current.resume().catch(() => {});
       }
 
       activeAnalyser.getByteTimeDomainData(activeArray as any);
@@ -625,10 +626,11 @@ const CustomLeaveButton = ({
         return;
       }
 
-      // 회의록 요약 임시 텍스트 저장
+      // 회의록 요약 저장 + roomId 전달하여 attendees 닉네임 변환
       await updateReportSummary(
         roomInfo.reportId,
-        "(구현 예정) 회의록 요약을 여기에 넣을것입니다."
+        "(구현 예정) 회의록 요약을 여기에 넣을것입니다.",
+        roomId // roomId 추가: userId -> 닉네임 변환에 사용
       );
       console.log("회의록 요약이 저장되었습니다.");
       // 회의방에서 나가기
@@ -755,7 +757,7 @@ const CustomLeaveButton = ({
       {/* 나가기 버튼 */}
       <button
         onClick={handleLeaveClick}
-        className="lk-button !border !border-red-600 !text-red-600 font-bold"
+        className="lk-button !border !border-red-600 font-bold !text-red-600"
         disabled={isLoading}
       >
         Leave

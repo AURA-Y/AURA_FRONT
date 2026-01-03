@@ -1,7 +1,6 @@
 "use client";
 
-
-import { attendRoom, createRoom, deleteRoomFromDB } from "@/lib/api/api.room";
+import { attendRoom, createRoom, deleteRoomFromDB, joinRoomInDB } from "@/lib/api/api.room";
 import { CreateRoomFormValues, JoinRoomFormValues } from "@/lib/schema/room/roomCreate.schema";
 import { AttendRoomRequest } from "@/lib/types/room.type";
 import { errorHandler } from "@/lib/utils";
@@ -21,6 +20,15 @@ export function useJoinRoom() {
         roomId: room,
         userName: user,
       });
+
+      // PostgreSQL DB에 참여자 등록 (userId 추가)
+      try {
+        await joinRoomInDB(room);
+      } catch (dbError) {
+        // DB 등록 실패해도 회의 참여는 가능하도록
+        console.warn("Failed to register attendee in DB:", dbError);
+      }
+
       return { room, user, ...response };
     },
     onSuccess: ({ room, user, token }) => {
