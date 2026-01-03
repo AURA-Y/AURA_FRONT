@@ -633,6 +633,14 @@ const CustomLeaveButton = ({
         roomId // roomId 추가: userId -> 닉네임 변환에 사용
       );
       console.log("회의록 요약이 저장되었습니다.");
+
+      // 회의방 삭제
+      await deleteRoomFromDB(roomId);
+      console.log("회의가 종료되었습니다.");
+
+      // React Query 캐시 무효화
+      queryClient.invalidateQueries({ queryKey: ["Rooms"] });
+
       // 회의방에서 나가기
       room?.disconnect();
       onDisconnected();
